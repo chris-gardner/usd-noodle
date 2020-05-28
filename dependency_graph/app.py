@@ -21,7 +21,8 @@ logger.propagate = False
 class DependencyWalker(object):
     def __init__(self, usdfile):
         self.usdfile = usdfile
-        logger.info('usd file: {}'.format(self.usdfile))
+        logger.info('DependencyWalker'.center(40, '-'))
+        logger.info('loading usd file: {}'.format(self.usdfile))
         self.nodes = []
         self.edges = []
     
@@ -126,7 +127,15 @@ def arrange(start_node, depth=0):
 
 
 def main(usdfile):
+    # sanitize the file path
+    # remove escaped spaces
+    usdfile = usdfile.replace(r'\ ', ' ')
+    # replace backslashes
+    usdfile = usdfile.replace('\\', '/')
+    
+    # TODO: find proper scene centre
     center = [1000, 1000]
+    
     x = DependencyWalker(usdfile)
     x.start()
     
@@ -136,7 +145,7 @@ def main(usdfile):
     lay = QtWidgets.QHBoxLayout()
     dialog.setLayout(lay)
     
-    print 'starting'
+    logger.info('building nodes')
     nodz = nodz_main.Nodz(None)
     lay.addWidget(nodz)
     nodz.initialize()
