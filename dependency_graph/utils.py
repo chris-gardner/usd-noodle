@@ -1,5 +1,6 @@
 import os.path
 
+
 escape_dict = {
     '\7': r'\a',
     '\a': r'\a',
@@ -12,15 +13,6 @@ escape_dict = {
     '\v': r'\v',
     '\'': r'\'',
     '\"': r'\"',
-    '\0': r'\0',
-    '\1': r'\1',
-    '\2': r'\2',
-    '\3': r'\3',
-    '\4': r'\4',
-    '\5': r'\5',
-    '\6': r'\6',
-    '\8': r'\8',
-    '\9': r'\9',
     '\ ': r' ',
 }
 
@@ -35,6 +27,7 @@ def raw(text):
             new_string += char
     return new_string
 
+
 def sanitize_path(in_path):
     """
     Clean the path for consumption
@@ -43,6 +36,6 @@ def sanitize_path(in_path):
     """
     in_path = in_path.replace(r'\ ', ' ')
     in_path = raw(in_path)
-    in_path = os.path.normpath(in_path)
+    #in_path = os.path.normpath(in_path)
     in_path = in_path.replace('\\', '/')
     return in_path

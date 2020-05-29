@@ -103,9 +103,13 @@ class Arranger(object):
         
         self.bbmin = [999999999, 999999999]
         self.bbmax = [-999999999, -999999999]
+        
+        self.visited_nodes = []
     
     
     def arrange(self):
+        self.visited_nodes = []
+        
         pos = self.adjuster(self.start_node)
         
         scene = self.start_node.scene()
@@ -162,18 +166,22 @@ class Arranger(object):
             # it has children. average it's position vertically
             avg = 0
             for node in connected_nodes:
-                avg += self.adjuster(node, depth=depth + 1)
+                if node not in self.visited_nodes:
+                    avg += self.adjuster(node, depth=depth + 1)
+                    self.visited_nodes.append(node)
             avg /= len(connected_nodes)
             pos = QtCore.QPointF(self.cx - depth * self.hspace, self.cy - avg * self.vspace)
             start_node.setPos(pos)
             self.adjust_bbox(pos)
         
         else:
-            # nothing connected. stack it's position vertically
-            pos = QtCore.QPointF(self.cx - depth * self.hspace, self.cy - (self.voffset) * self.vspace)
-            start_node.setPos(pos)
-            self.voffset += 1
-            self.adjust_bbox(pos)
+            if start_node not in self.visited_nodes:
+                # nothing connected. stack it's position vertically
+                pos = QtCore.QPointF(self.cx - depth * self.hspace, self.cy - (self.voffset) * self.vspace)
+                start_node.setPos(pos)
+                self.voffset += 1
+                self.adjust_bbox(pos)
+                self.visited_nodes.append(start_node)
         
         if depth == 0:
             # redraw all the connections and stuff
@@ -184,7 +192,7 @@ class Arranger(object):
 
 def main(usdfile):
     usdfile = utils.sanitize_path(usdfile)
-    
+    # usdfile = usdfile.encode('unicode_escape')
     # TODO: find proper scene centre
     center = [1000, 1000]
     
@@ -210,6 +218,7 @@ def main(usdfile):
     nodz.createAttribute(node=root_node, name='ref', index=-1, preset='attr_preset_1',
                          plug=True, socket=True, dataType=int, socketMaxConnections=-1)
     
+    nds = []
     for i, node in enumerate(x.nodes):
         # print node
         rnd = random.seed(i)
@@ -217,11 +226,12 @@ def main(usdfile):
         pos = QtCore.QPointF((random.random() - 0.5) * 1000 + center[0], (random.random() - 0.5) * 1000 + center[1])
         node_label = os.path.basename(node)
         
-        nodeA = nodz.createNode(name=node_label, preset='node_preset_1', position=pos)
-        nodeA.fuck = node
-        nodz.createAttribute(node=nodeA, name='ref', index=-1, preset='attr_preset_1',
-                             plug=True, socket=True, dataType=int, socketMaxConnections=-1)
-    
+        if not node_label in nds:
+            nodeA = nodz.createNode(name=node_label, preset='node_preset_1', position=pos)
+            if nodeA:
+                nodz.createAttribute(node=nodeA, name='ref', index=-1, preset='attr_preset_1',
+                                     plug=True, socket=True, dataType=int, socketMaxConnections=-1)
+            nds.append(node_label)
     nodz.signal_NodeMoved.connect(on_nodeMoved)
     
     node_coll = nodz.scene().nodes
