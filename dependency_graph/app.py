@@ -2,7 +2,6 @@ import logging
 import os.path
 import random
 
-import hou
 from Qt import QtCore, QtWidgets
 from pxr import Usd, Sdf
 
@@ -170,7 +169,14 @@ class Arranger(object):
                     avg += self.adjuster(node, depth=depth + 1)
                     self.visited_nodes.append(node)
             avg /= len(connected_nodes)
-            pos = QtCore.QPointF(self.cx - depth * self.hspace, self.cy - avg * self.vspace)
+            
+            if len(connected_nodes) == 1:
+                # if just one child node, copy the vertical position
+                pos = QtCore.QPointF(self.cx - depth * self.hspace, connected_nodes[0].pos().y())
+            else:
+                # more than one child - use the average
+                pos = QtCore.QPointF(self.cx - depth * self.hspace, self.cy - avg * self.vspace)
+            
             start_node.setPos(pos)
             self.adjust_bbox(pos)
         
@@ -190,6 +196,19 @@ class Arranger(object):
         return start_voffset + (self.voffset - start_voffset) * 0.5
 
 
+def manualOpen(startPath=None):
+    """
+    Manual open method for manually opening the manually opened files.
+    """
+    multipleFilters = "USD Files (*.usd *.usda *.usdc) (*.usd *.usda *.usdc);;All Files (*.*) (*.*)"
+    filename = QtWidgets.QFileDialog.getOpenFileName(
+        QtWidgets.QApplication.activeWindow(), 'Open File', startPath or '/', multipleFilters,
+        None, QtWidgets.QFileDialog.DontUseNativeDialog)
+    if filename[0]:
+        print filename
+        return filename[0]
+
+
 def main(usdfile):
     usdfile = utils.sanitize_path(usdfile)
     # usdfile = usdfile.encode('unicode_escape')
@@ -198,11 +217,19 @@ def main(usdfile):
     
     x = DependencyWalker(usdfile)
     x.start()
-    win = hou.qt.mainWindow()
+    win = QtWidgets.QApplication.activeWindow()
     
     dialog = QtWidgets.QDialog(parent=win)
-    lay = QtWidgets.QHBoxLayout()
+    lay = QtWidgets.QVBoxLayout()
     dialog.setLayout(lay)
+    toolBar = QtWidgets.QToolBar()
+    lay.addWidget(toolBar)
+    
+    openAction = QtWidgets.QAction('Open...', dialog)
+    openAction.setShortcut('Ctrl+o')
+    openAction.triggered.connect(manualOpen)
+    
+    toolBar.addAction(openAction)
     
     logger.info('building nodes')
     configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
