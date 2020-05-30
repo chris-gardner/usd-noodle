@@ -203,7 +203,6 @@ class Arranger(object):
 
 class NodeGraphWindow(QtWidgets.QDialog):
     def __init__(self, usdfile=None, parent=None):
-        print 'hi from NodeGraph'
         self.usdfile = usdfile
         self.root_node = None
         
@@ -297,6 +296,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         """
         Manual open method for manually opening the manually opened files.
         """
+        startPath = None
         if self.usdfile:
             startPath = os.path.dirname(self.usdfile)
         
@@ -316,12 +316,11 @@ class NodeGraphWindow(QtWidgets.QDialog):
         """
         
         self.settings.setValue("geometry", self.saveGeometry())
-        
         super(NodeGraphWindow, self).closeEvent(*args, **kwargs)
 
 
-def main(usdfile):
-    usdfile = utils.sanitize_path(usdfile)
+def main(usdfile=None):
+    # usdfile = utils.sanitize_path(usdfile)
     # usdfile = usdfile.encode('unicode_escape')
     
     par = QtWidgets.QApplication.activeWindow()
