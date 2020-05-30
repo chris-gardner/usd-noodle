@@ -2,7 +2,7 @@ import logging
 import os.path
 import random
 
-from Qt import QtCore, QtWidgets
+from Qt import QtCore, QtWidgets, QtGui
 from pxr import Usd, Sdf
 
 import utils
@@ -89,10 +89,11 @@ def on_nodeMoved(nodeName, nodePos):
 
 
 class Arranger(object):
-    def __init__(self, start_node, hspace=400, vspace=100, ):
+    def __init__(self, start_node, hspace=400, vspace=100, padding=300):
         self.voffset = 0
         self.hspace = hspace
         self.vspace = vspace
+        self.padding = padding
         
         self.start_node = start_node
         
@@ -112,14 +113,18 @@ class Arranger(object):
         pos = self.adjuster(self.start_node)
         
         scene = self.start_node.scene()
-        rect = scene.sceneRect()
         
-        pad = 300
-        rect.setLeft(self.bbmin[0] - pad)
-        rect.setBottom(self.bbmin[1] - pad)
-        rect.setRight(self.bbmax[0] + pad)
-        rect.setTop(self.bbmax[1] + pad)
+        # gotta adjust the scene bounding box to fit all the nodes in
+        # plus some padding around it
+        rect = scene.sceneRect()
+        rect.setLeft(self.bbmin[0] - self.padding)
+        rect.setBottom(self.bbmin[1] - self.padding)
+        rect.setRight(self.bbmax[0] + self.padding)
+        rect.setTop(self.bbmax[1] + self.padding)
         scene.setSceneRect(rect)
+        
+        # updateScene() forces the graph edges to redraw after the nodes have been moved
+        scene.updateScene()
         
         return pos
     
@@ -196,77 +201,129 @@ class Arranger(object):
         return start_voffset + (self.voffset - start_voffset) * 0.5
 
 
-def manualOpen(startPath=None):
-    """
-    Manual open method for manually opening the manually opened files.
-    """
-    multipleFilters = "USD Files (*.usd *.usda *.usdc) (*.usd *.usda *.usdc);;All Files (*.*) (*.*)"
-    filename = QtWidgets.QFileDialog.getOpenFileName(
-        QtWidgets.QApplication.activeWindow(), 'Open File', startPath or '/', multipleFilters,
-        None, QtWidgets.QFileDialog.DontUseNativeDialog)
-    if filename[0]:
-        print filename
-        return filename[0]
+class NodeGraphWindow(QtWidgets.QDialog):
+    def __init__(self, usdfile=None, parent=None):
+        print 'hi from NodeGraph'
+        self.usdfile = usdfile
+        self.root_node = None
+        
+        super(NodeGraphWindow, self).__init__(parent)
+        self.settings = QtCore.QSettings("chrisg", "usd-dependency-graph")
+        
+        self.build_ui()
+        if self.usdfile:
+            self.load_file()
+    
+    
+    def build_ui(self):
+        
+        if self.settings.value("geometry"):
+            self.restoreGeometry(self.settings.value("geometry"))
+        else:
+            self.resize(600, 400)
+        
+        lay = QtWidgets.QVBoxLayout()
+        self.setLayout(lay)
+        self.toolBar = QtWidgets.QToolBar('Main')
+        self.toolBar.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
+        lay.addWidget(self.toolBar)
+        
+        openAction = QtWidgets.QAction('Open...', self)
+        openAction.setShortcut('Ctrl+o')
+        openAction.triggered.connect(self.manualOpen)
+        
+        self.toolBar.addAction(openAction)
+        
+        logger.info('building nodes')
+        configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
+        
+        self.nodz = nodz_main.Nodz(None, configPath=configPath)
+        lay.addWidget(self.nodz)
+        self.nodz.initialize()
+    
+    
+    def load_file(self):
+        
+        if not os.path.isfile(self.usdfile):
+            raise RuntimeError("Cannot find file: %s" % self.usdfile)
+        
+        self.nodz.clearGraph()
+        self.root_node = None
+        self.setWindowTitle(self.usdfile)
+        
+        x = DependencyWalker(self.usdfile)
+        x.start()
+        
+        nodz_scene = self.nodz.scene()
+        rect = nodz_scene.sceneRect()
+        center = [rect.center().x(), rect.center().y()]
+        
+        node_label = os.path.basename(self.usdfile)
+        self.root_node = self.nodz.createNode(name=node_label, preset='node_preset_1',
+                                              position=QtCore.QPointF(center[0] + 400, center[1]))
+        self.nodz.createAttribute(node=self.root_node, name='ref', index=-1, preset='attr_preset_1',
+                                  plug=True, socket=True, dataType=int, socketMaxConnections=-1)
+        
+        nds = []
+        for i, node in enumerate(x.nodes):
+            # print node
+            rnd = random.seed(i)
+            
+            pos = QtCore.QPointF((random.random() - 0.5) * 1000 + center[0],
+                                 (random.random() - 0.5) * 1000 + center[1])
+            node_label = os.path.basename(node)
+            
+            if not node_label in nds:
+                nodeA = self.nodz.createNode(name=node_label, preset='node_preset_1', position=pos)
+                if nodeA:
+                    self.nodz.createAttribute(node=nodeA, name='ref', index=-1, preset='attr_preset_1',
+                                              plug=True, socket=True, dataType=int, socketMaxConnections=-1)
+                nds.append(node_label)
+        self.nodz.signal_NodeMoved.connect(on_nodeMoved)
+        
+        # create all the node connections
+        for edge in x.edges:
+            start = os.path.basename(edge[0])
+            end = os.path.basename(edge[1])
+            self.nodz.createConnection(end, 'ref', start, 'ref')
+        
+        # layout nodes!
+        Arranger(self.root_node).arrange()
+        
+        self.nodz._focus()
+    
+    
+    def manualOpen(self):
+        """
+        Manual open method for manually opening the manually opened files.
+        """
+        if self.usdfile:
+            startPath = os.path.dirname(self.usdfile)
+        
+        multipleFilters = "USD Files (*.usd *.usda *.usdc) (*.usd *.usda *.usdc);;All Files (*.*) (*.*)"
+        filename = QtWidgets.QFileDialog.getOpenFileName(
+            QtWidgets.QApplication.activeWindow(), 'Open File', startPath or '/', multipleFilters,
+            None, QtWidgets.QFileDialog.DontUseNativeDialog)
+        if filename[0]:
+            print filename[0]
+            self.usdfile = filename[0]
+            self.load_file()
+    
+    
+    def closeEvent(self, *args, **kwargs):
+        """
+        Window close event. Saves preferences. Impregnates your dog.
+        """
+        
+        self.settings.setValue("geometry", self.saveGeometry())
+        
+        super(NodeGraphWindow, self).closeEvent(*args, **kwargs)
 
 
 def main(usdfile):
     usdfile = utils.sanitize_path(usdfile)
     # usdfile = usdfile.encode('unicode_escape')
-    # TODO: find proper scene centre
-    center = [1000, 1000]
     
-    x = DependencyWalker(usdfile)
-    x.start()
-    win = QtWidgets.QApplication.activeWindow()
-    
-    dialog = QtWidgets.QDialog(parent=win)
-    lay = QtWidgets.QVBoxLayout()
-    dialog.setLayout(lay)
-    toolBar = QtWidgets.QToolBar()
-    lay.addWidget(toolBar)
-    
-    openAction = QtWidgets.QAction('Open...', dialog)
-    openAction.setShortcut('Ctrl+o')
-    openAction.triggered.connect(manualOpen)
-    
-    toolBar.addAction(openAction)
-    
-    logger.info('building nodes')
-    configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
-    
-    nodz = nodz_main.Nodz(None, configPath=configPath)
-    lay.addWidget(nodz)
-    nodz.initialize()
-    dialog.show()
-    
-    node_label = os.path.basename(usdfile)
-    root_node = nodz.createNode(name=node_label, preset='node_preset_1',
-                                position=QtCore.QPointF(center[0] + 400, center[1]))
-    nodz.createAttribute(node=root_node, name='ref', index=-1, preset='attr_preset_1',
-                         plug=True, socket=True, dataType=int, socketMaxConnections=-1)
-    
-    nds = []
-    for i, node in enumerate(x.nodes):
-        # print node
-        rnd = random.seed(i)
-        
-        pos = QtCore.QPointF((random.random() - 0.5) * 1000 + center[0], (random.random() - 0.5) * 1000 + center[1])
-        node_label = os.path.basename(node)
-        
-        if not node_label in nds:
-            nodeA = nodz.createNode(name=node_label, preset='node_preset_1', position=pos)
-            if nodeA:
-                nodz.createAttribute(node=nodeA, name='ref', index=-1, preset='attr_preset_1',
-                                     plug=True, socket=True, dataType=int, socketMaxConnections=-1)
-            nds.append(node_label)
-    nodz.signal_NodeMoved.connect(on_nodeMoved)
-    
-    node_coll = nodz.scene().nodes
-    for edge in x.edges:
-        start = os.path.basename(edge[0])
-        end = os.path.basename(edge[1])
-        nodz.createConnection(end, 'ref', start, 'ref')
-    
-    Arranger(root_node).arrange()
-    
-    root_node.scene().updateScene()
+    par = QtWidgets.QApplication.activeWindow()
+    win = NodeGraphWindow(usdfile=usdfile, parent=par)
+    win.show()
