@@ -3,7 +3,7 @@ import os.path
 import random
 
 from Qt import QtCore, QtWidgets, QtGui
-from pxr import Usd, Sdf
+from pxr import Usd, Sdf, Ar
 
 import utils
 from vendor.nodz import nodz_main
@@ -21,6 +21,8 @@ logger.propagate = False
 class DependencyWalker(object):
     def __init__(self, usdfile):
         self.usdfile = usdfile
+        self.stage = None
+        
         logger.info('DependencyWalker'.center(40, '-'))
         logger.info('loading usd file: {}'.format(self.usdfile))
         self.nodes = []
@@ -31,9 +33,10 @@ class DependencyWalker(object):
     def start(self):
         self.nodes = []
         self.edges = []
+        self.stage = None
         
-        stage = Usd.Stage.Open(self.usdfile)
-        rootLayer = stage.GetRootLayer()
+        self.stage = Usd.Stage.Open(self.usdfile)
+        rootLayer = self.stage.GetRootLayer()
         
         self.walkStageLayers(rootLayer)
     
@@ -53,27 +56,65 @@ class DependencyWalker(object):
         # print id, 'references:'
         
         count = 0
-        # print 'SUBLAYERS'
-        # print layer.subLayerPaths
         
-        for x in layer.GetExternalReferences():
-            print id, os.path.normpath(os.path.join(layer_basepath, x))
+        for ref in layer.GetExternalReferences():
+            print id, os.path.normpath(os.path.join(layer_basepath, ref))
+            if self.stage.IsLayerMuted(ref):
+                print 'muted layer'
+            
             # if you wanna construct a full path yourself
             # you can manually load a SdfLayer like this
             # layer = Sdf.Layer.Find(os.path.normpath(os.path.join(layer_basepath, x)))
             
             # or you can use FindRelativeToLayer to do the dirty work
             # more robust
-            sub_layer = Sdf.Layer.FindRelativeToLayer(layer, x)
+            sub_layer = Sdf.Layer.FindRelativeToLayer(layer, ref)
             if sub_layer:
-                count += 1
+                
                 child_count = self.walkStageLayers(sub_layer, level=level + 1)
-                subfile = os.path.normpath(os.path.join(layer_basepath, x))
+                subfile = os.path.normpath(os.path.join(layer_basepath, ref))
                 if not subfile in self.nodes:
+                    count += 1
                     self.nodes.append(subfile)
-                self.edges.append([layer_path, subfile])
+                if not [layer_path, subfile] in self.edges:
+                    self.edges.append([layer_path, subfile])
                 self.children[subfile] = child_count
+        
+        print 'SUBLAYERS'
+        print layer.subLayerPaths
+        for ref in layer.subLayerPaths:
+            if self.stage.IsLayerMuted(ref):
+                print 'muted layer'
+            sub_layer = Sdf.Layer.FindRelativeToLayer(layer, ref)
+            if sub_layer:
+                child_count = self.walkStageLayers(sub_layer, level=level + 1)
+                subfile = os.path.normpath(os.path.join(layer_basepath, ref))
+                if not subfile in self.nodes:
+                    count += 1
+                    self.nodes.append(subfile)
+                if not [layer_path, subfile] in self.edges:
+                    self.edges.append([layer_path, subfile])
+                self.children[subfile] = child_count
+        
         return count
+    
+    
+    def layerprops(self, layer):
+        print 'layer props'.center(40, '-')
+        
+        for prop in ['anonymous', 'colorConfiguration', 'colorManagementSystem', 'comment', 'customLayerData',
+                     'defaultPrim', 'dirty', 'documentation', 'empty', 'endTimeCode', 'expired', 'externalReferences',
+                     'fileExtension', 'framePrecision',
+                     'framesPerSecond', 'hasOwnedSubLayers', 'identifier', 'owner', 'permissionToEdit',
+                     'permissionToSave', 'pseudoRoot', 'realPath', 'repositoryPath', 'rootPrimOrder', 'rootPrims',
+                     'sessionOwner', 'startTimeCode', 'subLayerOffsets', 'subLayerPaths', 'timeCodesPerSecond',
+                     'version']:
+            print prop, getattr(layer, prop)
+        print ''.center(40, '-')
+        
+        defaultprim = layer.defaultPrim
+        if defaultprim:
+            print defaultprim, type(defaultprim)
 
 
 def find_node(node_coll, attr_name, attr_value):
@@ -262,6 +303,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
                                               position=QtCore.QPointF(center[0] + 400, center[1]))
         self.nodz.createAttribute(node=self.root_node, name='ref', index=-1, preset='attr_preset_1',
                                   plug=True, socket=True, dataType=int, socketMaxConnections=-1)
+        self.nodz.createAttribute(node=self.root_node, name='clips', index=-1, preset='attr_preset_1',
+                                  plug=True, socket=True, dataType=int, socketMaxConnections=-1)
         
         nds = []
         for i, node in enumerate(x.nodes):
@@ -316,7 +359,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         """
         
         self.settings.setValue("geometry", self.saveGeometry())
-        super(NodeGraphWindow, self).closeEvent(*args, **kwargs)
+        super(NodeGraphWindow, self).closeEvent(*args)
 
 
 def main(usdfile=None):
@@ -326,3 +369,80 @@ def main(usdfile=None):
     par = QtWidgets.QApplication.activeWindow()
     win = NodeGraphWindow(usdfile=usdfile, parent=par)
     win.show()
+
+
+def test(usdfile):
+    print 'test'.center(40, '-')
+    stage_ref = Usd.Stage.Open(usdfile)
+    
+    for prim_ref in stage_ref.Traverse():
+        print(prim_ref.GetPath())
+        if prim_ref.HasPayload():
+            print 'payloads'.center(40, '-')
+            # this is apparently hacky, but it works, yah?
+            payloads = prim_ref.GetMetadata("payload")
+            # so there's lots of lists
+            for x in dir(payloads):
+                if x.endswith('Items'):
+                    print x, getattr(payloads, x)
+            
+            for payload in payloads.appendedItems:
+                pathToResolve = payload.assetPath
+                print 'assetPath:', pathToResolve
+                primSpec = prim_ref.GetPrimStack()[0]
+                # get the layer from the prim
+                anchorPath = primSpec.layer.identifier
+                
+                with Ar.ResolverContextBinder(stage_ref.GetPathResolverContext()):
+                    resolver = Ar.GetResolver()
+                    # relative to layer path?
+                    pathToResolve = resolver.AnchorRelativePath(anchorPath, pathToResolve)
+                    print 'pathToResolve', pathToResolve
+                    
+                    # this should probably work, but no
+                    resolvedPath = resolver.Resolve(pathToResolve)
+                    print 'resolvedPath', resolvedPath
+        
+        if prim_ref.HasAuthoredPayloads():
+            payloads = prim_ref.GetPayloads()
+            # print payloads
+            """
+            There is currently no facility for listing the currently authored payloads on a prim...
+            the problem is somewhat ill-defined, and requires some thought.
+            """
+        
+        # does this prim have variant sets?
+        if prim_ref.HasVariantSets():
+            print 'variantsets'.center(30, '-')
+            
+            # list all the variant sets avalable on this prim
+            sets = prim_ref.GetVariantSets()
+            
+            # you can't iterate over the sets.
+            # you have to get the name and do a GetVariantSet(<<set name>>)
+            # TypeError: 'VariantSets' object is not iterable
+            # maybe USD 20?
+            for varset in sets.GetNames():
+                print 'variant set name:', varset
+                # get the variant set by name
+                thisvarset = prim_ref.GetVariantSet(varset)
+                
+                # the available variants
+                print thisvarset.GetVariantNames()
+                # the current variant
+                print thisvarset.GetVariantSelection()
+                print varset
+        
+        # gotta get a clip on each prim and then test it for paths?
+        clips = Usd.ClipsAPI(prim_ref)
+        if clips.GetClipAssetPaths():
+            print 'CLIPS'.center(30, '-')
+            # dict of clip info. full of everything
+            # key is the clip *name*
+            print clips.GetClips()
+            # this is a good one - resolved asset paths too
+            for path in clips.GetClipAssetPaths():
+                print path, type(path)
+                print path.resolvedPath
+    
+    print 'end test'.center(40, '-')
