@@ -79,6 +79,8 @@ class DependencyWalker(object):
                 if not [layer_path, subfile] in self.edges:
                     self.edges.append([layer_path, subfile])
                 self.children[subfile] = child_count
+            else:
+                print "NOT ONLINE", ref
         
         print 'SUBLAYERS'
         print layer.subLayerPaths
@@ -95,6 +97,8 @@ class DependencyWalker(object):
                 if not [layer_path, subfile] in self.edges:
                     self.edges.append([layer_path, subfile])
                 self.children[subfile] = child_count
+            else:
+                print "NOT ONLINE", ref
         
         return count
     
@@ -177,7 +181,7 @@ class Arranger(object):
         :return:
         """
         ret = 0
-        for conn in node.sockets['ref'].connections:
+        for conn in node.sockets['layers'].connections:
             ret += 1
             node_coll = [x for x in node.scene().nodes.values() if x.name == conn.plugNode]
             connected_node = node_coll[0]
@@ -203,7 +207,7 @@ class Arranger(object):
         
         start_voffset = self.voffset
         connected_nodes = []
-        for i, conn in enumerate(start_node.sockets['ref'].connections):
+        for i, conn in enumerate(start_node.sockets['layers'].connections):
             node_coll = [x for x in start_node.scene().nodes.values() if x.name == conn.plugNode]
             connected_nodes.append(node_coll[0])
         
@@ -301,10 +305,12 @@ class NodeGraphWindow(QtWidgets.QDialog):
         node_label = os.path.basename(self.usdfile)
         self.root_node = self.nodz.createNode(name=node_label, preset='node_preset_1',
                                               position=QtCore.QPointF(center[0] + 400, center[1]))
-        self.nodz.createAttribute(node=self.root_node, name='ref', index=-1, preset='attr_preset_1',
+        self.nodz.createAttribute(node=self.root_node, name='layers', index=-1, preset='attr_preset_1',
                                   plug=True, socket=True, dataType=int, socketMaxConnections=-1)
-        self.nodz.createAttribute(node=self.root_node, name='clips', index=-1, preset='attr_preset_1',
+        self.nodz.createAttribute(node=self.root_node, name='clips', index=-1, preset='attr_preset_2',
                                   plug=True, socket=True, dataType=int, socketMaxConnections=-1)
+        self.nodz.createAttribute(node=self.root_node, name='poo', index=0, preset='attr_preset_2',
+                                  plug=False, socket=False)
         
         nds = []
         for i, node in enumerate(x.nodes):
@@ -318,7 +324,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
             if not node_label in nds:
                 nodeA = self.nodz.createNode(name=node_label, preset='node_preset_1', position=pos)
                 if nodeA:
-                    self.nodz.createAttribute(node=nodeA, name='ref', index=-1, preset='attr_preset_1',
+                    self.nodz.createAttribute(node=nodeA, name='layers', index=-1, preset='attr_preset_1',
                                               plug=True, socket=True, dataType=int, socketMaxConnections=-1)
                 nds.append(node_label)
         self.nodz.signal_NodeMoved.connect(on_nodeMoved)
@@ -327,7 +333,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         for edge in x.edges:
             start = os.path.basename(edge[0])
             end = os.path.basename(edge[1])
-            self.nodz.createConnection(end, 'ref', start, 'ref')
+            self.nodz.createConnection(end, 'layers', start, 'layers')
         
         # layout nodes!
         Arranger(self.root_node).arrange()
@@ -373,14 +379,20 @@ def main(usdfile=None):
 
 def test(usdfile):
     print 'test'.center(40, '-')
-    stage_ref = Usd.Stage.Open(usdfile)
+    stage = Usd.Stage.Open(usdfile)
     
-    for prim_ref in stage_ref.Traverse():
-        print(prim_ref.GetPath())
-        if prim_ref.HasPayload():
+    for prim in stage.Traverse():
+        print(prim.GetPath())
+        
+        """
+        this doesn't quite work
+        https://groups.google.com/d/msg/usd-interest/s4AM0v60uBI/sYltgp7OAgAJ
+        """
+        if prim.HasPayload():
             print 'payloads'.center(40, '-')
             # this is apparently hacky, but it works, yah?
-            payloads = prim_ref.GetMetadata("payload")
+            # https://groups.google.com/d/msg/usd-interest/s4AM0v60uBI/q-okjU2RCAAJ
+            payloads = prim.GetMetadata("payload")
             # so there's lots of lists
             for x in dir(payloads):
                 if x.endswith('Items'):
@@ -389,11 +401,11 @@ def test(usdfile):
             for payload in payloads.appendedItems:
                 pathToResolve = payload.assetPath
                 print 'assetPath:', pathToResolve
-                primSpec = prim_ref.GetPrimStack()[0]
+                primSpec = prim.GetPrimStack()[0]
                 # get the layer from the prim
                 anchorPath = primSpec.layer.identifier
                 
-                with Ar.ResolverContextBinder(stage_ref.GetPathResolverContext()):
+                with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
                     resolver = Ar.GetResolver()
                     # relative to layer path?
                     pathToResolve = resolver.AnchorRelativePath(anchorPath, pathToResolve)
@@ -403,8 +415,8 @@ def test(usdfile):
                     resolvedPath = resolver.Resolve(pathToResolve)
                     print 'resolvedPath', resolvedPath
         
-        if prim_ref.HasAuthoredPayloads():
-            payloads = prim_ref.GetPayloads()
+        if prim.HasAuthoredPayloads():
+            payloads = prim.GetPayloads()
             # print payloads
             """
             There is currently no facility for listing the currently authored payloads on a prim...
@@ -412,11 +424,11 @@ def test(usdfile):
             """
         
         # does this prim have variant sets?
-        if prim_ref.HasVariantSets():
+        if prim.HasVariantSets():
             print 'variantsets'.center(30, '-')
             
             # list all the variant sets avalable on this prim
-            sets = prim_ref.GetVariantSets()
+            sets = prim.GetVariantSets()
             
             # you can't iterate over the sets.
             # you have to get the name and do a GetVariantSet(<<set name>>)
@@ -425,7 +437,7 @@ def test(usdfile):
             for varset in sets.GetNames():
                 print 'variant set name:', varset
                 # get the variant set by name
-                thisvarset = prim_ref.GetVariantSet(varset)
+                thisvarset = prim.GetVariantSet(varset)
                 
                 # the available variants
                 print thisvarset.GetVariantNames()
@@ -434,7 +446,7 @@ def test(usdfile):
                 print varset
         
         # gotta get a clip on each prim and then test it for paths?
-        clips = Usd.ClipsAPI(prim_ref)
+        clips = Usd.ClipsAPI(prim)
         if clips.GetClipAssetPaths():
             print 'CLIPS'.center(30, '-')
             # dict of clip info. full of everything
