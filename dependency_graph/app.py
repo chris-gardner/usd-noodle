@@ -6,8 +6,9 @@ from Qt import QtCore, QtWidgets, QtGui
 from pxr import Usd, Sdf, Ar
 
 import utils
-from vendor.nodz import nodz_main
-
+# from vendor.nodz import nodz_main
+import derp
+reload(derp)
 
 logger = logging.getLogger('usd-dependency-graph')
 logger.setLevel(logging.DEBUG)
@@ -134,15 +135,16 @@ def on_nodeMoved(nodeName, nodePos):
 
 
 class Arranger(object):
-    def __init__(self, start_node, hspace=400, vspace=100, padding=300):
+    def __init__(self, start_node, scene, hspace=400, vspace=100, padding=300):
         self.voffset = 0
         self.hspace = hspace
         self.vspace = vspace
         self.padding = padding
         
         self.start_node = start_node
+        self.scene = scene
         
-        rect = start_node.scene().sceneRect()
+        rect = self.scene.sceneRect()
         self.cx = rect.right()
         self.cy = rect.bottom()
         
@@ -157,39 +159,22 @@ class Arranger(object):
         
         pos = self.adjuster(self.start_node)
         
-        scene = self.start_node.scene()
         
         # gotta adjust the scene bounding box to fit all the nodes in
         # plus some padding around it
-        rect = scene.sceneRect()
+        rect = self.scene.sceneRect()
         rect.setLeft(self.bbmin[0] - self.padding)
         rect.setBottom(self.bbmin[1] - self.padding)
         rect.setRight(self.bbmax[0] + self.padding)
         rect.setTop(self.bbmax[1] + self.padding)
-        scene.setSceneRect(rect)
+        self.scene.setSceneRect(rect)
         
         # updateScene() forces the graph edges to redraw after the nodes have been moved
-        scene.updateScene()
+        #self.scene.updateScene()
         
         return pos
     
-    
-    def get_max_child_count(self, node):
-        """
-        Maximum
-        :param node:
-        :return:
-        """
-        ret = 0
-        for conn in node.sockets['layers'].connections:
-            ret += 1
-            node_coll = [x for x in node.scene().nodes.values() if x.name == conn.plugNode]
-            connected_node = node_coll[0]
-            
-            ret += self.get_max_child_count(connected_node)
-        
-        return ret
-    
+
     
     def adjust_bbox(self, pos):
         if pos.x() < self.bbmin[0]:
@@ -207,9 +192,10 @@ class Arranger(object):
         
         start_voffset = self.voffset
         connected_nodes = []
-        for i, conn in enumerate(start_node.sockets['layers'].connections):
-            node_coll = [x for x in start_node.scene().nodes.values() if x.name == conn.plugNode]
-            connected_nodes.append(node_coll[0])
+        
+        for i, edge in enumerate(start_node.dest_edges):
+            source_node = edge.source
+            connected_nodes.append(source_node)
         
         if connected_nodes:
             # it has children. average it's position vertically
@@ -239,9 +225,9 @@ class Arranger(object):
                 self.adjust_bbox(pos)
                 self.visited_nodes.append(start_node)
         
-        if depth == 0:
-            # redraw all the connections and stuff
-            start_node.scene().updateScene()
+        # if depth == 0:
+        #     # redraw all the connections and stuff
+        #     start_node.scene().updateScene()
         
         return start_voffset + (self.voffset - start_voffset) * 0.5
 
@@ -281,9 +267,11 @@ class NodeGraphWindow(QtWidgets.QDialog):
         logger.info('building nodes')
         configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
         
-        self.nodz = nodz_main.Nodz(None, configPath=configPath)
-        lay.addWidget(self.nodz)
-        self.nodz.initialize()
+        # self.nodz = nodz_main.Nodz(None, configPath=configPath)
+        # lay.addWidget(self.nodz)
+        # self.nodz.initialize()
+        self.nodegraph = derp.ViewClass()
+        lay.addWidget(self.nodegraph)
     
     
     def load_file(self):
@@ -291,26 +279,32 @@ class NodeGraphWindow(QtWidgets.QDialog):
         if not os.path.isfile(self.usdfile):
             raise RuntimeError("Cannot find file: %s" % self.usdfile)
         
-        self.nodz.clearGraph()
+        derp_scene = self.nodegraph.scene
+        
+        #self.nodz.clearGraph()
         self.root_node = None
         self.setWindowTitle(self.usdfile)
         
         x = DependencyWalker(self.usdfile)
         x.start()
         
-        nodz_scene = self.nodz.scene()
-        rect = nodz_scene.sceneRect()
-        center = [rect.center().x(), rect.center().y()]
-        
+        # nodz_scene = self.nodz.scene()
+        # rect = nodz_scene.sceneRect()
+        # center = [rect.center().x(), rect.center().y()]
+        center = [500, 500]
         node_label = os.path.basename(self.usdfile)
-        self.root_node = self.nodz.createNode(name=node_label, preset='node_preset_1',
-                                              position=QtCore.QPointF(center[0] + 400, center[1]))
-        self.nodz.createAttribute(node=self.root_node, name='layers', index=-1, preset='attr_preset_1',
-                                  plug=True, socket=True, dataType=int, socketMaxConnections=-1)
-        self.nodz.createAttribute(node=self.root_node, name='clips', index=-1, preset='attr_preset_2',
-                                  plug=True, socket=True, dataType=int, socketMaxConnections=-1)
-        self.nodz.createAttribute(node=self.root_node, name='poo', index=0, preset='attr_preset_2',
-                                  plug=False, socket=False)
+        # self.root_node = self.nodz.createNode(name=node_label, preset='node_preset_1',
+        #                                       position=QtCore.QPointF(center[0] + 400, center[1]))
+        # self.nodz.createAttribute(node=self.root_node, name='layers', index=-1, preset='attr_preset_1',
+        #                           plug=True, socket=True, dataType=int, socketMaxConnections=-1)
+        # self.nodz.createAttribute(node=self.root_node, name='clips', index=-1, preset='attr_preset_2',
+        #                           plug=True, socket=True, dataType=int, socketMaxConnections=-1)
+        # self.nodz.createAttribute(node=self.root_node, name='poo', index=0, preset='attr_preset_2',
+        #                           plug=False, socket=False)
+        
+        self.root_node = derp.Node(title=node_label, filepath=self.usdfile)
+        derp_scene.addItem(self.root_node)
+        derp_scene.nodeColl.append(self.root_node)
         
         nds = []
         for i, node in enumerate(x.nodes):
@@ -321,26 +315,40 @@ class NodeGraphWindow(QtWidgets.QDialog):
                                  (random.random() - 0.5) * 1000 + center[1])
             node_label = os.path.basename(node)
             
-            if not node_label in nds:
-                nodeA = self.nodz.createNode(name=node_label, preset='node_preset_1', position=pos)
-                if nodeA:
-                    self.nodz.createAttribute(node=nodeA, name='layers', index=-1, preset='attr_preset_1',
-                                              plug=True, socket=True, dataType=int, socketMaxConnections=-1)
-                nds.append(node_label)
-        self.nodz.signal_NodeMoved.connect(on_nodeMoved)
+            if not node in nds:
+                #print 'adding node', node_label, node
+                node = derp.Node(title=node_label, filepath=node)
+                derp_scene.addItem(node)
+                derp_scene.nodeColl.append(node)
+    
         
         # create all the node connections
         for edge in x.edges:
             start = os.path.basename(edge[0])
             end = os.path.basename(edge[1])
-            self.nodz.createConnection(end, 'layers', start, 'layers')
-        
+            start_node = self.findNode(edge[0])
+            end_node = self.findNode(edge[1])
+            print start_node, end_node
+            
+            edge = derp.Edge(end_node, start_node, scene=derp_scene)
+            derp_scene.addItem(edge)
+            derp_scene.edgeColl.append(edge)
+            end_node.source_edges.append(edge)
+            start_node.dest_edges.append(edge)
+
         # layout nodes!
-        Arranger(self.root_node).arrange()
-        
-        self.nodz._focus()
-    
-    
+        Arranger(self.root_node, derp_scene).arrange()
+
+
+    def findNode(self, filepath):
+        derp_scene = self.nodegraph.scene
+
+        for sceneNode in derp_scene.nodeColl:
+            #print sceneNode, filepath
+            if sceneNode.filepath == filepath:
+                return sceneNode
+
+
     def manualOpen(self):
         """
         Manual open method for manually opening the manually opened files.
