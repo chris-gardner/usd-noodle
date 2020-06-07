@@ -193,7 +193,7 @@ class Arranger(object):
         start_voffset = self.voffset
         connected_nodes = []
         
-        for i, edge in enumerate(start_node.dest_edges):
+        for i, edge in enumerate(start_node.output_edges):
             source_node = edge.source
             connected_nodes.append(source_node)
         
@@ -333,8 +333,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
             edge = derp.Edge(end_node, start_node, scene=derp_scene)
             derp_scene.addItem(edge)
             derp_scene.edgeColl.append(edge)
-            end_node.source_edges.append(edge)
-            start_node.dest_edges.append(edge)
+            end_node.input_edges.append(edge)
+            start_node.output_edges.append(edge)
 
         # layout nodes!
         Arranger(self.root_node, derp_scene).arrange()

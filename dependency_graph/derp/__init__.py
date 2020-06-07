@@ -6,6 +6,7 @@ from Qt import QtGui, QtCore, QtWidgets
 import math
 import os
 
+
 rad = 50
 
 
@@ -202,7 +203,6 @@ class SceneClass(QtWidgets.QGraphicsScene):
         self.view = view
         self.nodeColl = []
         self.edgeColl = []
-        
     
     
     def populate(self):
@@ -328,8 +328,8 @@ class Node(QtWidgets.QGraphicsItem):
         self.radius = 15
         
         self.edges = []
-        self.source_edges = []
-        self.dest_edges = []
+        self.input_edges = []
+        self.output_edges = []
         
         self.setZValue(1)
         self.setFlag(QtWidgets.QGraphicsItem.ItemIsMovable)
@@ -349,7 +349,7 @@ class Node(QtWidgets.QGraphicsItem):
     
     def upstream_nodes(self, node, level=0):
         ret = []
-        for edge in node.source_edges:
+        for edge in node.input_edges:
             edge_node = edge.source
             ret.append(edge_node)
             ret.extend(self.upstream_nodes(edge_node, level=level + 1))
@@ -358,7 +358,7 @@ class Node(QtWidgets.QGraphicsItem):
     
     def downstream_nodes(self, node, level=0):
         ret = []
-        for edge in node.dest_edges:
+        for edge in node.output_edges:
             edge_node = edge.dest
             ret.append(edge_node)
             ret.extend(self.downstream_nodes(edge_node, level=level + 1))
@@ -421,7 +421,7 @@ class Node(QtWidgets.QGraphicsItem):
     
     
     def _trace_nodes(self, node, level=0):
-        for edge in node.source_edges:
+        for edge in node.input_edges:
             edge_node = edge.source
             print ('-' * level) + str(edge_node)
             self._trace_nodes(edge_node, level=level + 1)
@@ -429,11 +429,11 @@ class Node(QtWidgets.QGraphicsItem):
     
     def trace(self):
         print 'my source edges:'.center(40, '-')
-        for edge in self.source_edges:
+        for edge in self.input_edges:
             print edge
         
         print 'my dest edges:'.center(40, '-')
-        for edge in self.dest_edges:
+        for edge in self.output_edges:
             print edge
         
         print 'trace:'.center(40, '-')
@@ -457,9 +457,9 @@ class Node(QtWidgets.QGraphicsItem):
         """
         
         if change == QtWidgets.QGraphicsItem.ItemPositionHasChanged:
-            for edge in self.source_edges:
+            for edge in self.input_edges:
                 edge.adjust()
-            for edge in self.dest_edges:
+            for edge in self.output_edges:
                 edge.adjust()
         return QtWidgets.QGraphicsItem.itemChange(self, change, value)
     
@@ -646,6 +646,125 @@ class Edge(QtWidgets.QGraphicsItem):
                                                       math.cos(angle - math.pi + math.pi / 3) * self.arrowSize)
         painter.setBrush(QtCore.Qt.white)
         painter.drawPolygon(QtGui.QPolygonF([line.p2(), destArrowP1, destArrowP2]))
+
+
+class DrawNodeInputNub(QtGui.QGraphicsItem):
+    """
+    A QGraphicsItem representing the small clickable nub at the end of a DAG
+    node.  New connections can be created by clicking and dragging from this.
+    """
+    
+    Type = QtGui.QGraphicsItem.UserType + 3
+    
+    
+    def __init__(self, index=0, name='', dataType='string'):
+        """
+        """
+        QtGui.QGraphicsItem.__init__(self)
+        
+        self.setAcceptedMouseButtons(QtCore.Qt.LeftButton)
+        self.setCacheMode(self.DeviceCoordinateCache)
+        self.setZValue(-1)
+        self.setAcceptHoverEvents(True)
+        
+        self.index = index
+        self.radius = 14.0
+        self.padding = 5
+        self.verticalOffset = (self.index * self.radius) + (self.index * 5) + 30
+        self.name = name
+        self.dataType = dataType
+        
+        self.edgeList = list()
+        self.setToolTip(self.name + '\n' + dataType)
+        
+        color = [0.5, 0.5, 0.5]
+        self.defaultBgColor = QtGui.QColor.fromRgbF(*color)
+        self.currentBgColor = QtGui.QColor.fromRgbF(*color)
+    
+    
+    def __addDrawEdge(self, edge):
+        """
+        Add a given draw edge to this node.
+        """
+        if edge.destDrawNode() == self:
+            self.edgeList.append(edge)
+        edge.adjust()
+    
+    
+    def type(self):
+        """
+        Assistance for the QT windowing toolkit.
+        """
+        return DrawNodeInputNub.Type
+    
+    
+    def boundingRect(self):
+        """
+        Defines the clickable hit box.
+        """
+        return QtCore.QRectF(-self.padding, -self.padding, self.radius + self.padding, self.radius + self.padding)
+    
+    
+    def paint(self, painter, option, widget):
+        """
+        Draw the nub.
+        """
+        painter.setBrush(QtGui.QBrush(self.currentBgColor))
+        painter.setPen(QtGui.QPen(QtCore.Qt.black, 1))
+        rect = QtCore.QRectF(0, 0, self.radius, self.radius)
+        painter.drawEllipse(rect)
+    
+    
+    def hilite(self, state):
+        if state is True:
+            self.currentBgColor = QtGui.QColor(QtCore.Qt.yellow)
+        else:
+            self.currentBgColor = self.defaultBgColor
+        self.update()
+    
+    
+    def hoverEnterEvent(self, event):
+        self.hilite(True)
+    
+    
+    def hoverLeaveEvent(self, event):
+        self.hilite(False)
+
+
+class DrawNodeOutputNub(DrawNodeInputNub):
+    """
+    A QGraphicsItem representing the small clickable nub at the end of a DAG
+    node.  New connections can be created by clicking and dragging from this.
+    """
+    
+    Type = QtGui.QGraphicsItem.UserType + 3
+    
+    
+    def __init__(self, index=0, name='', dataType='string'):
+        DrawNodeInputNub.__init__(self, index=index, name=name, dataType=dataType)
+    
+    
+    def __addDrawEdge(self, edge):
+        """
+        Add a given draw edge to this node.
+        """
+        if edge.sourceDrawNode() == self:
+            self.edgeList.append(edge)
+        edge.adjust()
+    
+    
+    def mousePressEvent(self, event):
+        """
+        Accept left-button clicks to create the new connection.
+        """
+        # print self.name
+        tempEdge = Edge(self.parentItem(), None, floatingDestinationPoint=event.scenePos(), sourcePort=self.index)
+        self.scene().addItem(tempEdge)
+        self.ungrabMouse()
+        tempEdge.dragging = True  # TODO: Probably better done with an DrawEdge function (still valid?)
+        tempEdge.grabMouse()
+        event.accept()
+        return
 
 
 def main(parent):
