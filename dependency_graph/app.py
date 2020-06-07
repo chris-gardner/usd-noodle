@@ -25,13 +25,12 @@ class DependencyWalker(object):
         
         logger.info('DependencyWalker'.center(40, '-'))
         logger.info('loading usd file: {}'.format(self.usdfile))
-        self.nodes = []
+        self.nodes = {}
         self.edges = []
-        self.children = {}
     
     
     def start(self):
-        self.nodes = []
+        self.nodes = {}
         self.edges = []
         self.stage = None
         
@@ -54,51 +53,77 @@ class DependencyWalker(object):
         # print id, 'layer: ', layer_path
         layer_basepath = os.path.dirname(layer_path)
         # print id, 'references:'
-        
+        print 'refs', layer.GetExternalReferences()
         count = 0
         
         for ref in layer.GetExternalReferences():
-            print id, os.path.normpath(os.path.join(layer_basepath, ref))
+            if not ref:
+                # sometimes a ref can be a zero length string. whyyyyyyyyy?
+                # seeing this in multiverse esper_room example
+                continue
+            
+            refpath = os.path.normpath(os.path.join(layer_basepath, ref))
+            print id, refpath
             if self.stage.IsLayerMuted(ref):
                 print 'muted layer'
+            print 'anon?', Sdf.Layer.IsAnonymousLayerIdentifier(ref)
             
             # if you wanna construct a full path yourself
             # you can manually load a SdfLayer like this
-            # layer = Sdf.Layer.Find(os.path.normpath(os.path.join(layer_basepath, x)))
+            sub_layer = Sdf.Layer.Find(refpath)
             
             # or you can use FindRelativeToLayer to do the dirty work
-            # more robust
-            sub_layer = Sdf.Layer.FindRelativeToLayer(layer, ref)
+            # seems to operate according to the composition rules (variants blah blah)
+            # ie, it *may* not return a layer if the stage is set to not load that layer
+            # sub_layer = Sdf.Layer.FindRelativeToLayer(layer, ref)
+            
+            online = True
             if sub_layer:
-                
                 child_count = self.walkStageLayers(sub_layer, level=level + 1)
-                subfile = os.path.normpath(os.path.join(layer_basepath, ref))
-                if not subfile in self.nodes:
-                    count += 1
-                    self.nodes.append(subfile)
-                if not [layer_path, subfile] in self.edges:
-                    self.edges.append([layer_path, subfile])
-                self.children[subfile] = child_count
-            else:
+            if not os.path.isfile(refpath):
+                online = False
                 print "NOT ONLINE", ref
+            
+            if not refpath in self.nodes:
+                count += 1
+                info = {}
+                info['mute'] = self.stage.IsLayerMuted(ref)
+                info['online'] = online
+                
+                self.nodes[refpath] = info
+            
+            if not [layer_path, refpath] in self.edges:
+                self.edges.append([layer_path, refpath])
         
         print 'SUBLAYERS'
         print layer.subLayerPaths
         for ref in layer.subLayerPaths:
+            if not ref:
+                # going to guard against zero length strings here too
+                continue
+            
+            refpath = os.path.normpath(os.path.join(layer_basepath, ref))
+            
             if self.stage.IsLayerMuted(ref):
                 print 'muted layer'
-            sub_layer = Sdf.Layer.FindRelativeToLayer(layer, ref)
+            sub_layer = Sdf.Layer.Find(refpath)
+            online = True
             if sub_layer:
                 child_count = self.walkStageLayers(sub_layer, level=level + 1)
-                subfile = os.path.normpath(os.path.join(layer_basepath, ref))
-                if not subfile in self.nodes:
-                    count += 1
-                    self.nodes.append(subfile)
-                if not [layer_path, subfile] in self.edges:
-                    self.edges.append([layer_path, subfile])
-                self.children[subfile] = child_count
-            else:
+            if not os.path.isfile(refpath):
+                online = False
                 print "NOT ONLINE", ref
+            
+            if not refpath in self.nodes:
+                count += 1
+                info = {}
+                info['mute'] = self.stage.IsLayerMuted(ref)
+                info['online'] = online
+                
+                self.nodes[refpath] = info
+            
+            if not [layer_path, refpath] in self.edges:
+                self.edges.append([layer_path, refpath])
         
         return count
     
@@ -314,6 +339,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         nds = []
         for i, node in enumerate(x.nodes):
+            info = x.nodes[node]
             # print node
             rnd = random.seed(i)
             
@@ -326,6 +352,10 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 if nodeA:
                     self.nodz.createAttribute(node=nodeA, name='layers', index=-1, preset='attr_preset_1',
                                               plug=True, socket=True, dataType=int, socketMaxConnections=-1)
+                    if info['online'] is False:
+                        self.nodz.createAttribute(node=nodeA, name='OFFLINE', index=0, preset='attr_preset_2',
+                                                  plug=False, socket=False)
+                
                 nds.append(node_label)
         self.nodz.signal_NodeMoved.connect(on_nodeMoved)
         
