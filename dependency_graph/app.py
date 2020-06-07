@@ -7,8 +7,9 @@ from pxr import Usd, Sdf, Ar
 
 import utils
 from vendor.nodz import nodz_main
-reload(nodz_main)
 
+
+reload(nodz_main)
 
 logger = logging.getLogger('usd-dependency-graph')
 logger.setLevel(logging.DEBUG)
@@ -280,6 +281,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
         super(NodeGraphWindow, self).__init__(parent)
         self.settings = QtCore.QSettings("chrisg", "usd-dependency-graph")
         
+        self.nodz = None
+        
         self.build_ui()
         if self.usdfile:
             self.load_file()
@@ -308,6 +311,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
         
         self.nodz = nodz_main.Nodz(None, configPath=configPath)
+        self.nodz.editEnabled = False
         lay.addWidget(self.nodz)
         self.nodz.initialize()
     
