@@ -7,6 +7,7 @@ from pxr import Usd, Sdf, Ar
 
 import utils
 from vendor.nodz import nodz_main
+reload(nodz_main)
 
 
 logger = logging.getLogger('usd-dependency-graph')
@@ -367,7 +368,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         # layout nodes!
         Arranger(self.root_node).arrange()
-        
+        # self.nodz.autoLayoutGraph()
         self.nodz._focus()
     
     

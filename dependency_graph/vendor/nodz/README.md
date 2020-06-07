@@ -18,23 +18,17 @@ Nodz in under the [MIT license](LICENSE.txt).
 
 
 
-###
-## Requirement
-The following needs to be installed!
-- pip
-- pipenv
-
-
-
 
 ###
-## Installation
-- `git clone`
-- `cd location`
-- `pipenv install`
-- enjoy! :)
+## Prerequisite
+- Python
+- pyQt4 or pyQt5 or pySide or pySide2
+- [Qt.py](https://fredrikaverpil.github.io/2016/07/25/developing-with-qt-py/)
 
+Nodz needs to be in a PYTHONPATH.
 
+**Qt.py is very important as Nodz is based on it in order to work for multiple versions of Qt.**
+Short and easy story for lazy peeps. :smile:   [This file](https://raw.githubusercontent.com/mottosso/Qt.py/master/Qt.py) has to be available within a PYTHONPATH.
 
 
 ###
@@ -61,6 +55,7 @@ nodz.gridSnapToggle = False
 del : delete the selected nodes
 f   : zoom focus on selected items, all the items if nothing is selected
 s   : snap the selected node on the grid
+tab : display the node creator helper
 
 ```
 
@@ -83,6 +78,7 @@ Nodes
 def createNode(name, preset, position, alternate)
 def deleteNode(node)
 def editNode(node, newName)
+def initNodeCreationHelper(nodeList, nodeCreatorFunction)
 ```
 Attributes
 ```python
@@ -96,6 +92,7 @@ def createConnection(sourceNode, sourceAttr, targetNode, targetAttr)
 ```
 Graph
 ```python
+def autoLayoutGraph(margin)
 def saveGraph(filePath)
 def loadGraph(filePath)
 def evaluateGraph()
@@ -115,6 +112,7 @@ signal_NodeDeleted([nodeNames])
 signal_NodeEdited(oldName, newName)
 signal_NodeSelected([nodeNames])
 signal_NodeMoved(nodeName, nodePos)
+signal_NodeRightClicked(nodeName)
 signal_NodeDoubleClicked(nodeName)
 ```
 Attributes
