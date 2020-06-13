@@ -6,7 +6,7 @@ from Qt import QtCore, QtWidgets, QtGui
 from pxr import Usd, Sdf, Ar
 
 import utils
-from vendor.nodz import nodz_main
+from vendor.Nodz import nodz_main
 
 
 reload(nodz_main)
@@ -39,7 +39,15 @@ class DependencyWalker(object):
         self.stage = Usd.Stage.Open(self.usdfile)
         rootLayer = self.stage.GetRootLayer()
         
+        info = {}
+        info['mute'] = False
+        info['online'] = os.path.isfile(self.usdfile)
+        info['path'] = self.usdfile
+        info['type'] = 'layer'
+        self.nodes[self.usdfile] = info
+        
         self.walkStageLayers(rootLayer)
+        self.walkStagePrims(self.usdfile)
     
     
     def walkStageLayers(self, layer, level=1):
@@ -91,6 +99,8 @@ class DependencyWalker(object):
                 info = {}
                 info['mute'] = self.stage.IsLayerMuted(ref)
                 info['online'] = online
+                info['path'] = refpath
+                info['type'] = 'layer'
                 
                 self.nodes[refpath] = info
             
@@ -121,6 +131,8 @@ class DependencyWalker(object):
                 info = {}
                 info['mute'] = self.stage.IsLayerMuted(ref)
                 info['online'] = online
+                info['path'] = refpath
+                info['type'] = 'sublayer'
                 
                 self.nodes[refpath] = info
             
@@ -128,6 +140,106 @@ class DependencyWalker(object):
                 self.edges.append([layer_path, refpath])
         
         return count
+    
+    
+    def walkStagePrims(self, usdfile):
+        print 'test'.center(40, '-')
+        stage = Usd.Stage.Open(usdfile)
+        
+        for prim in stage.Traverse():
+            # print(prim.GetPath())
+            
+            """
+            this doesn't quite work
+            https://groups.google.com/d/msg/usd-interest/s4AM0v60uBI/sYltgp7OAgAJ
+            """
+            if prim.HasPayload():
+                print 'payloads'.center(40, '-')
+                # this is apparently hacky, but it works, yah?
+                # https://groups.google.com/d/msg/usd-interest/s4AM0v60uBI/q-okjU2RCAAJ
+                payloads = prim.GetMetadata("payload")
+                # so there's lots of lists
+                for x in dir(payloads):
+                    if x.endswith('Items'):
+                        print x, getattr(payloads, x)
+                
+                for payload in payloads.appendedItems:
+                    pathToResolve = payload.assetPath
+                    print 'assetPath:', pathToResolve
+                    primSpec = prim.GetPrimStack()[0]
+                    # get the layer from the prim
+                    anchorPath = primSpec.layer.identifier
+                    
+                    with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
+                        resolver = Ar.GetResolver()
+                        # relative to layer path?
+                        pathToResolve = resolver.AnchorRelativePath(anchorPath, pathToResolve)
+                        print 'pathToResolve', pathToResolve
+                        
+                        # this should probably work, but no
+                        resolvedPath = resolver.Resolve(pathToResolve)
+                        print 'resolvedPath', resolvedPath
+                        if not resolvedPath in self.nodes:
+                            info = {}
+                            info['online'] = os.path.isfile(resolvedPath)
+                            info['path'] = resolvedPath
+                            info['type'] = 'payload'
+                            
+                            self.nodes[resolvedPath] = info
+                        
+                        if not [anchorPath, resolvedPath] in self.edges:
+                            self.edges.append([anchorPath, resolvedPath])
+            
+            # does this prim have variant sets?
+            if prim.HasVariantSets():
+                print 'variantsets'.center(30, '-')
+                
+                # list all the variant sets avalable on this prim
+                sets = prim.GetVariantSets()
+                
+                # you can't iterate over the sets.
+                # you have to get the name and do a GetVariantSet(<<set name>>)
+                # TypeError: 'VariantSets' object is not iterable
+                # maybe USD 20?
+                for varset in sets.GetNames():
+                    print 'variant set name:', varset
+                    # get the variant set by name
+                    thisvarset = prim.GetVariantSet(varset)
+                    
+                    # the available variants
+                    print thisvarset.GetVariantNames()
+                    # the current variant
+                    print thisvarset.GetVariantSelection()
+                    print varset
+            
+            # gotta get a clip on each prim and then test it for paths?
+            clips = Usd.ClipsAPI(prim)
+            if clips.GetClipAssetPaths():
+                print 'CLIPS'.center(30, '-')
+                # dict of clip info. full of everything
+                # key is the clip *name*
+                clip_dict = clips.GetClips()
+                print clip_dict
+                
+                print 'GetClipManifestAssetPath', clips.GetClipManifestAssetPath().resolvedPath
+                # this is a good one - resolved asset paths too
+                for path in clips.GetClipAssetPaths():
+                    print path, type(path)
+                    print path.resolvedPath
+                    
+                    layer = clips.GetClipManifestAssetPath().resolvedPath
+                    if not path.resolvedPath in self.nodes:
+                        info = {}
+                        info['online'] = os.path.isfile(path.resolvedPath)
+                        info['path'] = path.resolvedPath
+                        info['type'] = 'clip'
+                        
+                        self.nodes[path.resolvedPath] = info
+                    
+                    if not [layer, path.resolvedPath] in self.edges:
+                        self.edges.append([layer, path.resolvedPath])
+        
+        print 'end test'.center(40, '-')
     
     
     def layerprops(self, layer):
@@ -237,6 +349,9 @@ class Arranger(object):
         for i, conn in enumerate(start_node.sockets['layers'].connections):
             node_coll = [x for x in start_node.scene().nodes.values() if x.name == conn.plugNode]
             connected_nodes.append(node_coll[0])
+        for i, conn in enumerate(start_node.sockets['clips'].connections):
+            node_coll = [x for x in start_node.scene().nodes.values() if x.name == conn.plugNode]
+            connected_nodes.append(node_coll[0])
         
         if connected_nodes:
             # it has children. average it's position vertically
@@ -332,18 +447,9 @@ class NodeGraphWindow(QtWidgets.QDialog):
         rect = nodz_scene.sceneRect()
         center = [rect.center().x(), rect.center().y()]
         
-        node_label = os.path.basename(self.usdfile)
-        self.root_node = self.nodz.createNode(name=node_label, preset='node_preset_1',
-                                              position=QtCore.QPointF(center[0] + 400, center[1]))
-        self.nodz.createAttribute(node=self.root_node, name='layers', index=-1, preset='attr_preset_1',
-                                  plug=True, socket=True, dataType=int, socketMaxConnections=-1)
-        self.nodz.createAttribute(node=self.root_node, name='clips', index=-1, preset='attr_preset_2',
-                                  plug=True, socket=True, dataType=int, socketMaxConnections=-1)
-        self.nodz.createAttribute(node=self.root_node, name='poo', index=0, preset='attr_preset_2',
-                                  plug=False, socket=False)
-        
         nds = []
         for i, node in enumerate(x.nodes):
+            
             info = x.nodes[node]
             # print node
             rnd = random.seed(i)
@@ -354,9 +460,19 @@ class NodeGraphWindow(QtWidgets.QDialog):
             
             if not node_label in nds:
                 nodeA = self.nodz.createNode(name=node_label, preset='node_preset_1', position=pos)
+                if self.usdfile == node:
+                    self.root_node = nodeA
+                
                 if nodeA:
+                    self.nodz.createAttribute(node=nodeA, name='out', index=0, preset='attr_preset_1',
+                                              plug=True, socket=False, dataType=int, socketMaxConnections=-1)
+                    
                     self.nodz.createAttribute(node=nodeA, name='layers', index=-1, preset='attr_preset_1',
-                                              plug=True, socket=True, dataType=int, socketMaxConnections=-1)
+                                              plug=False, socket=True, dataType=int, socketMaxConnections=-1)
+                    self.nodz.createAttribute(node=nodeA, name='clips', index=-1, preset='attr_preset_3',
+                                              plug=False, socket=True, dataType=int, socketMaxConnections=-1)
+                    nodeA.userData = info
+                    
                     if info['online'] is False:
                         self.nodz.createAttribute(node=nodeA, name='OFFLINE', index=0, preset='attr_preset_2',
                                                   plug=False, socket=False)
@@ -364,14 +480,24 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 nds.append(node_label)
         self.nodz.signal_NodeMoved.connect(on_nodeMoved)
         
+        print x.nodes.keys()
+        print 'wiring nodes'.center(40, '-')
         # create all the node connections
         for edge in x.edges:
+            print edge
             start = os.path.basename(edge[0])
+            node_type = x.nodes[edge[1]].get("type", "layer")
+            print 'node_type', node_type
+            port = 'layers'
+            if node_type == 'clip':
+                port = 'clips'
+            elif node_type == ' payload':
+                port = 'payloads'
             end = os.path.basename(edge[1])
-            self.nodz.createConnection(end, 'layers', start, 'layers')
+            self.nodz.createConnection(end, 'out', start, port)
         
         # layout nodes!
-        Arranger(self.root_node).arrange()
+        Arranger(self.root_node, vspace=150).arrange()
         # self.nodz.autoLayoutGraph()
         self.nodz._focus()
     
@@ -416,6 +542,11 @@ def test(usdfile):
     print 'test'.center(40, '-')
     stage = Usd.Stage.Open(usdfile)
     
+    print 'GetUsedLayers'.center(40, '-')
+    for x in stage.GetUsedLayers(includeClipLayers=True):
+        print x
+    
+    print 'stage.Traverse'.center(40, '-')
     for prim in stage.Traverse():
         print(prim.GetPath())
         
