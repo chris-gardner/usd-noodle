@@ -1,13 +1,17 @@
 import logging
 import os.path
 import random
+from functools import partial
 
 from Qt import QtCore, QtWidgets, QtGui
 from pxr import Usd, Sdf, Ar
 
 import utils
 from vendor.Nodz import nodz_main
+from . import text_view
 
+
+reload(text_view)
 
 reload(nodz_main)
 
@@ -426,9 +430,39 @@ class NodeGraphWindow(QtWidgets.QDialog):
         configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
         
         self.nodz = nodz_main.Nodz(None, configPath=configPath)
-        self.nodz.editEnabled = False
+        # self.nodz.editEnabled = False
         lay.addWidget(self.nodz)
         self.nodz.initialize()
+        self.nodz.signal_NodeMoved.connect(on_nodeMoved)
+        self.nodz.signal_NodeContextMenuEvent.connect(self.node_context_menu)
+    
+    
+    def node_path(self, node_name):
+        node = self.nodz.scene().nodes[node_name]
+        print node
+        userdata = node.userData
+        print userdata.get('path')
+    
+    
+    def view_usdfile(self, node_name):
+        node = self.nodz.scene().nodes[node_name]
+        print node
+        userdata = node.userData
+        path = userdata.get('path')
+        if path.endswith(".usda"):
+            win = text_view.TextViewer(path, parent=self)
+            win.show()
+        else:
+            print 'can only view usd ascii files'
+    
+    
+    def node_context_menu(self, event, node):
+        menu = QtWidgets.QMenu()
+        menu.addAction("print path", partial(self.node_path, node))
+        menu.addAction("View USD file...", partial(self.view_usdfile, node))
+        menu.addAction("Explore")
+        
+        menu.exec_(event.globalPos())
     
     
     def load_file(self):
@@ -478,7 +512,6 @@ class NodeGraphWindow(QtWidgets.QDialog):
                                                   plug=False, socket=False)
                 
                 nds.append(node_label)
-        self.nodz.signal_NodeMoved.connect(on_nodeMoved)
         
         print x.nodes.keys()
         print 'wiring nodes'.center(40, '-')
