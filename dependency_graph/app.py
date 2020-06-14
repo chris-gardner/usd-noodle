@@ -1,6 +1,7 @@
 import logging
 import os.path
 import random
+import fnmatch
 from functools import partial
 
 from Qt import QtCore, QtWidgets, QtGui
@@ -392,6 +393,36 @@ class Arranger(object):
         return start_voffset + (self.voffset - start_voffset) * 0.5
 
 
+class FindNodeWindow(QtWidgets.QDialog):
+    def __init__(self, nodz, parent=None):
+        self.nodz = nodz
+        super(FindNodeWindow, self).__init__(parent)
+        self.setWindowFlags(QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnTopHint)
+        
+        self.build_ui()
+    
+    
+    def search(self):
+        search_text = self.searchTxt.text()
+        print search_text
+        for x in self.nodz.scene().nodes:
+            
+            node = self.nodz.scene().nodes[x]
+            if x.startswith(search_text):
+                node.setSelected(True)
+            else:
+                node.setSelected(False)
+        self.nodz._focus()
+    
+    
+    def build_ui(self):
+        lay = QtWidgets.QVBoxLayout()
+        self.setLayout(lay)
+        self.searchTxt = QtWidgets.QLineEdit()
+        self.searchTxt.textChanged.connect(self.search)
+        lay.addWidget(self.searchTxt)
+
+
 class NodeGraphWindow(QtWidgets.QDialog):
     def __init__(self, usdfile=None, parent=None):
         self.usdfile = usdfile
@@ -402,6 +433,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         self.nodz = None
         
+        self.find_win = None
         self.build_ui()
         if self.usdfile:
             self.load_file()
@@ -423,8 +455,12 @@ class NodeGraphWindow(QtWidgets.QDialog):
         openAction = QtWidgets.QAction('Open...', self)
         openAction.setShortcut('Ctrl+o')
         openAction.triggered.connect(self.manualOpen)
-        
         self.toolBar.addAction(openAction)
+        
+        findAction = QtWidgets.QAction('Find...', self)
+        findAction.setShortcut('Ctrl+F')
+        findAction.triggered.connect(self.findWindow)
+        self.toolBar.addAction(findAction)
         
         logger.info('building nodes')
         configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
@@ -437,16 +473,26 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.nodz.signal_NodeContextMenuEvent.connect(self.node_context_menu)
     
     
+    def findWindow(self):
+        if self.find_win:
+            self.find_win.close()
+        
+        self.find_win = FindNodeWindow(self.nodz, parent=self)
+        self.find_win.show()
+    
+    
+    def get_node_from_name(self, node_name):
+        return self.nodz.scene().nodes[node_name]
+    
+    
     def node_path(self, node_name):
-        node = self.nodz.scene().nodes[node_name]
-        print node
+        node = self.get_node_from_name(node_name)
         userdata = node.userData
         print userdata.get('path')
     
     
     def view_usdfile(self, node_name):
-        node = self.nodz.scene().nodes[node_name]
-        print node
+        node = self.get_node_from_name(node_name)
         userdata = node.userData
         path = userdata.get('path')
         if path.endswith(".usda"):
@@ -460,7 +506,6 @@ class NodeGraphWindow(QtWidgets.QDialog):
         menu = QtWidgets.QMenu()
         menu.addAction("print path", partial(self.node_path, node))
         menu.addAction("View USD file...", partial(self.view_usdfile, node))
-        menu.addAction("Explore")
         
         menu.exec_(event.globalPos())
     
@@ -557,6 +602,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
         """
         Window close event. Saves preferences. Impregnates your dog.
         """
+        if self.find_win:
+            self.find_win.close()
         
         self.settings.setValue("geometry", self.saveGeometry())
         super(NodeGraphWindow, self).closeEvent(*args)
@@ -576,12 +623,28 @@ def test(usdfile):
     stage = Usd.Stage.Open(usdfile)
     
     print 'GetUsedLayers'.center(40, '-')
+    # things that are in use, apparntly
     for x in stage.GetUsedLayers(includeClipLayers=True):
         print x
     
     print 'stage.Traverse'.center(40, '-')
     for prim in stage.Traverse():
         print(prim.GetPath())
+        
+        """Return a list of PrimSpecs that provide opinions for this prim (i.e.
+        the prim's metadata fields, including composition metadata).
+         specs are ordered from strongest to weakest opinion."""
+        # print prim.GetPrimStack()
+        
+        if prim.HasAuthoredReferences():
+            primSpec = stage.GetEditTarget().GetPrimSpecForScenePath(prim.GetPath())
+            if primSpec:
+                refList = primSpec.referenceList
+                if refList:
+                    print 'referenceList'.center(40, '-')
+                    for ref in refList.GetAddedOrExplicitItems():
+                        if ref.assetPath:
+                            print ref.assetPath
         
         """
         this doesn't quite work
