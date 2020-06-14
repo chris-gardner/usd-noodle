@@ -19,10 +19,9 @@ class TextViewer(QtWidgets.QDialog):
         self.verticalLayout = QtWidgets.QVBoxLayout()
         self.setLayout(self.verticalLayout)
         
-        self.saveAction = QtWidgets.QAction('Save', self)
-        
         self.toolbar = QtWidgets.QToolBar('Main')
-        self.toolbar.addAction(self.saveAction)
+        # self.saveAction = QtWidgets.QAction('Save', self)
+        # self.toolbar.addAction(self.saveAction)
         
         self.verticalLayout.addWidget(self.toolbar)
         
@@ -40,7 +39,6 @@ class TextViewer(QtWidgets.QDialog):
             self.restoreGeometry(self.settings.value("geometry"))
         else:
             self.resize(900, 500)
-        self.setModal(True)
         
         self.loadData()
     
@@ -51,6 +49,8 @@ class TextViewer(QtWidgets.QDialog):
         """
         
         self.settings.setValue("geometry", self.saveGeometry())
+        self.deleteLater()
+        
         super(TextViewer, self).closeEvent(*args)
     
     
