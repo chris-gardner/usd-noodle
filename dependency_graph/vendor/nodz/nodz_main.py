@@ -11,6 +11,20 @@ import nodz_extra
 defaultConfigPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'default_config.json')
 
 
+def visibleRect(view):
+    """
+    Visible QRectF of a QGraphicsView
+    https://stackoverflow.com/a/17924010
+    
+    :param view: QGraphicsView
+    :return: Visible QRectF
+    """
+    
+    viewport_rect = QtCore.QRect(0, 0, view.viewport().width(), view.viewport().height())
+    visible_scene_rect = QtCore.QRectF(view.mapToScene(viewport_rect).boundingRect())
+    return visible_scene_rect
+
+
 class VariantAnimation(QtCore.QVariantAnimation):
     def updateCurrentValue(self, value):
         pass
@@ -555,8 +569,7 @@ class Nodz(QtWidgets.QGraphicsView):
     
     
     def animFitInView(self, end_rect):
-        print 'animFitInView'
-        start_rect = QtCore.QRectF(self.viewport().rect())
+        start_rect = visibleRect(self)
         anim = VariantAnimation()
         anim.setDuration = 3000
         anim.setStartValue(start_rect)
