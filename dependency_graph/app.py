@@ -8,7 +8,7 @@ from Qt import QtCore, QtWidgets, QtGui
 from pxr import Usd, Sdf, Ar
 
 import utils
-from vendor.Nodz import nodz_main
+from vendor.nodz import nodz_main
 from . import text_view
 
 
