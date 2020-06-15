@@ -404,15 +404,28 @@ class FindNodeWindow(QtWidgets.QDialog):
     
     def search(self):
         search_text = self.searchTxt.text()
-        print search_text
+        
+        self.foundNodeList.clear()
+        if search_text == '':
+            return
+        
         for x in self.nodz.scene().nodes:
+            if fnmatch.fnmatch(x.lower(), '*%s*' % search_text.lower()):
+                self.foundNodeList.addItem(QtWidgets.QListWidgetItem(x))
+    
+    
+    def item_selected(self, *args):
+        items = self.foundNodeList.selectedItems()
+        if items:
+            sel = [x.text() for x in items]
             
-            node = self.nodz.scene().nodes[x]
-            if x.startswith(search_text):
-                node.setSelected(True)
-            else:
-                node.setSelected(False)
-        self.nodz._focus()
+            for x in self.nodz.scene().nodes:
+                node = self.nodz.scene().nodes[x]
+                if x in sel:
+                    node.setSelected(True)
+                else:
+                    node.setSelected(False)
+            self.nodz._focus()
     
     
     def build_ui(self):
@@ -421,6 +434,11 @@ class FindNodeWindow(QtWidgets.QDialog):
         self.searchTxt = QtWidgets.QLineEdit()
         self.searchTxt.textChanged.connect(self.search)
         lay.addWidget(self.searchTxt)
+        
+        self.foundNodeList = QtWidgets.QListWidget()
+        self.foundNodeList.setSelectionMode(QtWidgets.QAbstractItemView.ExtendedSelection)
+        self.foundNodeList.itemSelectionChanged.connect(self.item_selected)
+        lay.addWidget(self.foundNodeList)
 
 
 class NodeGraphWindow(QtWidgets.QDialog):
