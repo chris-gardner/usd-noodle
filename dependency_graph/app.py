@@ -228,9 +228,9 @@ class DependencyWalker(object):
                 clip_dict = clips.GetClips()
                 print clip_dict
 
-                
-                firstFile = str(clips.GetClipAssetPaths()[0].resolvedPath)
-                lastFile = str(clips.GetClipAssetPaths()[-1].resolvedPath)
+                # don't use resolved path in case either the first or last file is missing from disk
+                firstFile = str(clips.GetClipAssetPaths()[0].path)
+                lastFile = str(clips.GetClipAssetPaths()[-1].path)
                 firstFileNum = digitSearch.findall(firstFile)[-1]
                 lastFileNum = digitSearch.findall(lastFile)[-1]
                 digitRange = str(firstFileNum + '-' + lastFileNum)
@@ -243,6 +243,12 @@ class DependencyWalker(object):
                 nodeName += digitRange
                 nodeName += firstFileParts[-1]
 
+                allFilesFound = True
+                for path in clips.GetClipAssetPaths():
+                    if (path.resolvedPath == ''):
+                        allFilesFound = False
+                        break
+
                 print 'GetClipManifestAssetPath', clips.GetClipManifestAssetPath().resolvedPath
                 # this is a good one - resolved asset paths too
                 for path in clips.GetClipAssetPaths():
@@ -252,7 +258,7 @@ class DependencyWalker(object):
                     layer = clips.GetClipManifestAssetPath().resolvedPath
                     if not nodeName in self.nodes:
                         info = {}
-                        info['online'] = os.path.isfile(path.resolvedPath)
+                        info['online'] = allFilesFound
                         info['path'] = nodeName
                         info['type'] = 'clip'
                         
