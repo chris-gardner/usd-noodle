@@ -11,6 +11,8 @@ import utils
 from vendor.nodz import nodz_main
 from . import text_view
 
+import re
+digitSearch = re.compile(r'\b\d+\b')
 
 reload(text_view)
 
@@ -225,7 +227,22 @@ class DependencyWalker(object):
                 # key is the clip *name*
                 clip_dict = clips.GetClips()
                 print clip_dict
+
                 
+                firstFile = str(clips.GetClipAssetPaths()[0].resolvedPath)
+                lastFile = str(clips.GetClipAssetPaths()[-1].resolvedPath)
+                firstFileNum = digitSearch.findall(firstFile)[-1]
+                lastFileNum = digitSearch.findall(lastFile)[-1]
+                digitRange = str(firstFileNum + '-' + lastFileNum)
+                nodeName = '';
+
+                firstFileParts = firstFile.split(firstFileNum)
+                for i in range(len(firstFileParts)-1):
+                    nodeName += str(firstFileParts[i])
+
+                nodeName += digitRange
+                nodeName += firstFileParts[-1]
+
                 print 'GetClipManifestAssetPath', clips.GetClipManifestAssetPath().resolvedPath
                 # this is a good one - resolved asset paths too
                 for path in clips.GetClipAssetPaths():
@@ -233,16 +250,16 @@ class DependencyWalker(object):
                     print path.resolvedPath
                     
                     layer = clips.GetClipManifestAssetPath().resolvedPath
-                    if not path.resolvedPath in self.nodes:
+                    if not nodeName in self.nodes:
                         info = {}
                         info['online'] = os.path.isfile(path.resolvedPath)
-                        info['path'] = path.resolvedPath
+                        info['path'] = nodeName
                         info['type'] = 'clip'
                         
-                        self.nodes[path.resolvedPath] = info
+                        self.nodes[nodeName] = info
                     
-                    if not [layer, path.resolvedPath] in self.edges:
-                        self.edges.append([layer, path.resolvedPath])
+                    if not [layer, nodeName] in self.edges:
+                        self.edges.append([layer, nodeName])
         
         print 'end test'.center(40, '-')
     
