@@ -249,6 +249,10 @@ class DependencyWalker(object):
                         allFilesFound = False
                         break
 
+                
+                # TODO : make more efficient - looping over everything currently
+                # TODO: validate presence of all files in the clip seq. bg thread?
+                
                 print 'GetClipManifestAssetPath', clips.GetClipManifestAssetPath().resolvedPath
                 # this is a good one - resolved asset paths too
                 for path in clips.GetClipAssetPaths():
