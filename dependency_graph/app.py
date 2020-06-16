@@ -12,6 +12,8 @@ from vendor.nodz import nodz_main
 from . import text_view
 
 import re
+
+
 digitSearch = re.compile(r'\b\d+\b')
 
 reload(text_view)
@@ -70,7 +72,7 @@ class DependencyWalker(object):
         # print id, 'layer: ', layer_path
         layer_basepath = os.path.dirname(layer_path)
         # print id, 'references:'
-        print 'refs', layer.GetExternalReferences()
+        # print 'refs', layer.GetExternalReferences()
         count = 0
         
         for ref in layer.GetExternalReferences():
@@ -80,10 +82,10 @@ class DependencyWalker(object):
                 continue
             
             refpath = os.path.normpath(os.path.join(layer_basepath, ref))
-            print id, refpath
-            if self.stage.IsLayerMuted(ref):
-                print 'muted layer'
-            print 'anon?', Sdf.Layer.IsAnonymousLayerIdentifier(ref)
+            # print id, refpath
+            # if self.stage.IsLayerMuted(ref):
+            #     print 'muted layer'
+            # print 'anon?', Sdf.Layer.IsAnonymousLayerIdentifier(ref)
             
             # if you wanna construct a full path yourself
             # you can manually load a SdfLayer like this
@@ -99,7 +101,7 @@ class DependencyWalker(object):
                 child_count = self.walkStageLayers(sub_layer, level=level + 1)
             if not os.path.isfile(refpath):
                 online = False
-                print "NOT ONLINE", ref
+                # print "NOT ONLINE", ref
             
             if not refpath in self.nodes:
                 count += 1
@@ -114,8 +116,8 @@ class DependencyWalker(object):
             if not [layer_path, refpath] in self.edges:
                 self.edges.append([layer_path, refpath])
         
-        print 'SUBLAYERS'
-        print layer.subLayerPaths
+        # print 'SUBLAYERS'
+        # print layer.subLayerPaths
         for ref in layer.subLayerPaths:
             if not ref:
                 # going to guard against zero length strings here too
@@ -123,15 +125,15 @@ class DependencyWalker(object):
             
             refpath = os.path.normpath(os.path.join(layer_basepath, ref))
             
-            if self.stage.IsLayerMuted(ref):
-                print 'muted layer'
+            # if self.stage.IsLayerMuted(ref):
+            #     print 'muted layer'
             sub_layer = Sdf.Layer.Find(refpath)
             online = True
             if sub_layer:
                 child_count = self.walkStageLayers(sub_layer, level=level + 1)
             if not os.path.isfile(refpath):
                 online = False
-                print "NOT ONLINE", ref
+                # print "NOT ONLINE", ref
             
             if not refpath in self.nodes:
                 count += 1
@@ -150,7 +152,7 @@ class DependencyWalker(object):
     
     
     def walkStagePrims(self, usdfile):
-        print 'test'.center(40, '-')
+        # print 'test'.center(40, '-')
         stage = Usd.Stage.Open(usdfile)
         
         for prim in stage.Traverse():
@@ -161,18 +163,19 @@ class DependencyWalker(object):
             https://groups.google.com/d/msg/usd-interest/s4AM0v60uBI/sYltgp7OAgAJ
             """
             if prim.HasPayload():
-                print 'payloads'.center(40, '-')
+                # print 'payloads'.center(40, '-')
                 # this is apparently hacky, but it works, yah?
                 # https://groups.google.com/d/msg/usd-interest/s4AM0v60uBI/q-okjU2RCAAJ
                 payloads = prim.GetMetadata("payload")
-                # so there's lots of lists
+                # so there's lots of lists that end in "items"
+                # probably better to access them manually
                 for x in dir(payloads):
                     if x.endswith('Items'):
-                        print x, getattr(payloads, x)
+                        pass
                 
                 for payload in payloads.appendedItems:
                     pathToResolve = payload.assetPath
-                    print 'assetPath:', pathToResolve
+                    # print 'assetPath:', pathToResolve
                     primSpec = prim.GetPrimStack()[0]
                     # get the layer from the prim
                     anchorPath = primSpec.layer.identifier
@@ -181,25 +184,27 @@ class DependencyWalker(object):
                         resolver = Ar.GetResolver()
                         # relative to layer path?
                         pathToResolve = resolver.AnchorRelativePath(anchorPath, pathToResolve)
-                        print 'pathToResolve', pathToResolve
+                        # print 'pathToResolve', pathToResolve
                         
                         # this should probably work, but no
                         resolvedPath = resolver.Resolve(pathToResolve)
-                        print 'resolvedPath', resolvedPath
-                        if not resolvedPath in self.nodes:
-                            info = {}
-                            info['online'] = os.path.isfile(resolvedPath)
-                            info['path'] = resolvedPath
-                            info['type'] = 'payload'
+                        # print 'resolvedPath', resolvedPath
+                        if resolvedPath:
+                            # sometimes the resolved paths are zero length strings
+                            if not resolvedPath in self.nodes:
+                                info = {}
+                                info['online'] = os.path.isfile(resolvedPath)
+                                info['path'] = resolvedPath
+                                info['type'] = 'payload'
+                                
+                                self.nodes[resolvedPath] = info
                             
-                            self.nodes[resolvedPath] = info
-                        
-                        if not [anchorPath, resolvedPath] in self.edges:
-                            self.edges.append([anchorPath, resolvedPath])
+                            if not [anchorPath, resolvedPath] in self.edges:
+                                self.edges.append([anchorPath, resolvedPath])
             
             # does this prim have variant sets?
             if prim.HasVariantSets():
-                print 'variantsets'.center(30, '-')
+                # print 'variantsets'.center(30, '-')
                 
                 # list all the variant sets avalable on this prim
                 sets = prim.GetVariantSets()
@@ -209,55 +214,54 @@ class DependencyWalker(object):
                 # TypeError: 'VariantSets' object is not iterable
                 # maybe USD 20?
                 for varset in sets.GetNames():
-                    print 'variant set name:', varset
+                    # print 'variant set name:', varset
                     # get the variant set by name
                     thisvarset = prim.GetVariantSet(varset)
                     
                     # the available variants
-                    print thisvarset.GetVariantNames()
+                    # print thisvarset.GetVariantNames()
                     # the current variant
-                    print thisvarset.GetVariantSelection()
-                    print varset
+                    # print thisvarset.GetVariantSelection()
+                    # print varset
             
             # gotta get a clip on each prim and then test it for paths?
             clips = Usd.ClipsAPI(prim)
             if clips.GetClipAssetPaths():
-                print 'CLIPS'.center(30, '-')
+                # print 'CLIPS'.center(30, '-')
                 # dict of clip info. full of everything
                 # key is the clip *name*
                 clip_dict = clips.GetClips()
-                print clip_dict
-
+                # print clip_dict
+                
                 # don't use resolved path in case either the first or last file is missing from disk
                 firstFile = str(clips.GetClipAssetPaths()[0].path)
                 lastFile = str(clips.GetClipAssetPaths()[-1].path)
                 firstFileNum = digitSearch.findall(firstFile)[-1]
                 lastFileNum = digitSearch.findall(lastFile)[-1]
                 digitRange = str(firstFileNum + '-' + lastFileNum)
-                nodeName = '';
-
+                nodeName = ''
+                
                 firstFileParts = firstFile.split(firstFileNum)
-                for i in range(len(firstFileParts)-1):
+                for i in range(len(firstFileParts) - 1):
                     nodeName += str(firstFileParts[i])
-
+                
                 nodeName += digitRange
                 nodeName += firstFileParts[-1]
-
+                
                 allFilesFound = True
                 for path in clips.GetClipAssetPaths():
                     if (path.resolvedPath == ''):
                         allFilesFound = False
                         break
-
                 
                 # TODO : make more efficient - looping over everything currently
                 # TODO: validate presence of all files in the clip seq. bg thread?
                 
-                print 'GetClipManifestAssetPath', clips.GetClipManifestAssetPath().resolvedPath
+                # print 'GetClipManifestAssetPath', clips.GetClipManifestAssetPath().resolvedPath
                 # this is a good one - resolved asset paths too
                 for path in clips.GetClipAssetPaths():
-                    print path, type(path)
-                    print path.resolvedPath
+                    # print path, type(path)
+                    # print path.resolvedPath
                     
                     layer = clips.GetClipManifestAssetPath().resolvedPath
                     if not nodeName in self.nodes:
@@ -271,7 +275,7 @@ class DependencyWalker(object):
                     if not [layer, nodeName] in self.edges:
                         self.edges.append([layer, nodeName])
         
-        print 'end test'.center(40, '-')
+        # print 'end test'.center(40, '-')
     
     
     def layerprops(self, layer):
@@ -603,14 +607,13 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 
                 nds.append(node_label)
         
-        print x.nodes.keys()
-        print 'wiring nodes'.center(40, '-')
+        # print x.nodes.keys()
+        # print 'wiring nodes'.center(40, '-')
         # create all the node connections
         for edge in x.edges:
-            print edge
             start = os.path.basename(edge[0])
             node_type = x.nodes[edge[1]].get("type", "layer")
-            print 'node_type', node_type
+            # print 'node_type', node_type
             port = 'layers'
             if node_type == 'clip':
                 port = 'clips'
