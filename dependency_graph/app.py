@@ -531,6 +531,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         self.find_win = FindNodeWindow(self.nodz, parent=self)
         self.find_win.show()
+        self.find_win.activateWindow()
     
     
     def get_node_from_name(self, node_name):
