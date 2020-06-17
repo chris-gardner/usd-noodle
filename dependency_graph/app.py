@@ -335,13 +335,8 @@ class Arranger(object):
         scene = self.start_node.scene()
         
         # gotta adjust the scene bounding box to fit all the nodes in
-        # plus some padding around it
-        rect = scene.sceneRect()
-        rect.setLeft(self.bbmin[0] - self.padding)
-        rect.setBottom(self.bbmin[1] - self.padding)
-        rect.setRight(self.bbmax[0] + self.padding)
-        rect.setTop(self.bbmax[1] + self.padding)
-        scene.setSceneRect(rect)
+        for node in self.visited_nodes:
+            node.checkIsWithinSceneRect()
         
         # updateScene() forces the graph edges to redraw after the nodes have been moved
         scene.updateScene()
