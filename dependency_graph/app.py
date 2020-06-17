@@ -492,19 +492,27 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         lay = QtWidgets.QVBoxLayout()
         self.setLayout(lay)
-        self.toolBar = QtWidgets.QToolBar('Main')
-        self.toolBar.setToolButtonStyle(QtCore.Qt.ToolButtonTextOnly)
-        lay.addWidget(self.toolBar)
         
-        openAction = QtWidgets.QAction('Open...', self)
-        openAction.setShortcut('Ctrl+o')
-        openAction.triggered.connect(self.manualOpen)
-        self.toolBar.addAction(openAction)
+        self.toolbar_lay = QtWidgets.QHBoxLayout()
+        lay.addLayout(self.toolbar_lay)
         
-        findAction = QtWidgets.QAction('Find...', self)
-        findAction.setShortcut('Ctrl+F')
-        findAction.triggered.connect(self.findWindow)
-        self.toolBar.addAction(findAction)
+        self.openBtn = QtWidgets.QPushButton("Open...", )
+        self.openBtn.setShortcut('Ctrl+o')
+        self.openBtn.clicked.connect(self.manualOpen)
+        self.toolbar_lay.addWidget(self.openBtn)
+        
+        self.reloadBtn = QtWidgets.QPushButton("Reload")
+        self.reloadBtn.setShortcut('Ctrl+r')
+        self.reloadBtn.clicked.connect(self.load_file)
+        self.toolbar_lay.addWidget(self.reloadBtn)
+        
+        self.findBtn = QtWidgets.QPushButton("Find...")
+        self.findBtn.setShortcut('Ctrl+f')
+        self.findBtn.clicked.connect(self.findWindow)
+        self.toolbar_lay.addWidget(self.findBtn)
+        
+        toolbarspacer = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        self.toolbar_lay.addItem(toolbarspacer)
         
         logger.info('building nodes')
         configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
