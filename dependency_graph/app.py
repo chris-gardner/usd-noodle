@@ -595,8 +595,13 @@ class NodeGraphWindow(QtWidgets.QDialog):
                                  (random.random() - 0.5) * 1000 + center[1])
             node_label = os.path.basename(node)
             
+            # node colouring / etc based on the node type
+            node_preset = 'node_default'
+            if info.get("type") == 'clip':
+                node_preset = 'node_clip'
+            
             if not node_label in nds:
-                nodeA = self.nodz.createNode(name=node_label, preset='node_preset_1', position=pos)
+                nodeA = self.nodz.createNode(name=node_label, preset=node_preset, position=pos)
                 if self.usdfile == node:
                     self.root_node = nodeA
                 
@@ -606,7 +611,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                     
                     self.nodz.createAttribute(node=nodeA, name='layers', index=-1, preset='attr_preset_1',
                                               plug=False, socket=True, dataType=int, socketMaxConnections=-1)
-                    self.nodz.createAttribute(node=nodeA, name='clips', index=-1, preset='attr_preset_3',
+                    self.nodz.createAttribute(node=nodeA, name='clips', index=-1, preset='attr_preset_1',
                                               plug=False, socket=True, dataType=int, socketMaxConnections=-1)
                     nodeA.userData = info
                     

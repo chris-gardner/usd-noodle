@@ -55,8 +55,8 @@
     // Don't forget to edit the end of the dictionary if editing the
     // following part.
 
-    "node_preset_1": {
-        "bg": [80, 80, 80, 255],
+    "node_clip": {
+        "bg": [80, 80, 128, 255],
         "border": [50, 50, 50, 255],
         "border_sel": [170, 80, 80, 255],
         "text": [230, 230, 230, 255]
