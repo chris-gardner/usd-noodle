@@ -511,6 +511,10 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.findBtn.clicked.connect(self.findWindow)
         self.toolbar_lay.addWidget(self.findBtn)
         
+        self.layoutBtn = QtWidgets.QPushButton("Layout Nodes")
+        self.layoutBtn.clicked.connect(self.layout_nodes)
+        self.toolbar_lay.addWidget(self.layoutBtn)
+        
         toolbarspacer = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.toolbar_lay.addItem(toolbarspacer)
         
@@ -633,6 +637,12 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.nodz._focus()
     
     
+    def layout_nodes(self):
+        # layout nodes!
+        Arranger(self.root_node, vspace=150).arrange()
+        self.nodz._focus(all=True)
+    
+    
     def manualOpen(self):
         """
         Manual open method for manually opening the manually opened files.
@@ -702,28 +712,28 @@ def test(usdfile):
                             print ' -', ref.assetPath
                             print ' -', ref.customData
                             print ' -', ref.layerOffset
-        
+                
                 refList = primSpec.payloadList
                 if refList:
                     print 'payloadList'.center(40, '-')
                     for ref in refList.GetAddedOrExplicitItems():
                         if ref.assetPath:
                             print ' -', ref.assetPath
-        
+                
                 refList = primSpec.specializesList
                 if refList:
                     print 'specializesList'.center(40, '-')
                     for ref in refList.GetAddedOrExplicitItems():
                         if ref.assetPath:
                             print ' -', ref.assetPath
-        
+                
                 refList = primSpec.inheritPathList
                 if refList:
                     print 'inheritPathList'.center(40, '-')
                     for ref in refList.GetAddedOrExplicitItems():
                         if ref.assetPath:
                             print ' -', ref.assetPath
-        
+                
                 print 'done with primspec'.center(40, '-')
         """
         this doesn't quite work
@@ -738,7 +748,7 @@ def test(usdfile):
             for x in dir(payloads):
                 if x.endswith('Items'):
                     print x, getattr(payloads, x)
-               
+            
             # query GetAddedOrExplicitItems for *all* entries, rather than rooting through each list?
             print 'GetAddedOrExplicitItems'
             print payloads.GetAddedOrExplicitItems()
