@@ -233,6 +233,13 @@ class DependencyWalker(object):
                 clip_dict = clips.GetClips()
                 # print clip_dict
                 
+                """
+                @todo: subframe handling
+                integer frames: path/basename.###.usd
+                subinteger frames: path/basename.##.##.usd.
+                
+                @todo: non-1 increments
+                """
                 # don't use resolved path in case either the first or last file is missing from disk
                 firstFile = str(clips.GetClipAssetPaths()[0].path)
                 lastFile = str(clips.GetClipAssetPaths()[-1].path)
@@ -816,5 +823,5 @@ def test(usdfile):
             for path in clips.GetClipAssetPaths():
                 print path, type(path)
                 print path.resolvedPath
-    
+            print 'GetClipPrimPath', clips.GetClipPrimPath()
     print 'end test'.center(40, '-')
