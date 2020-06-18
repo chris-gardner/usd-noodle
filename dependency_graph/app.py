@@ -518,6 +518,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
         
         self.nodz = nodz_main.Nodz(None, configPath=configPath)
+        self.nodz.editLevel = 1
         # self.nodz.editEnabled = False
         lay.addWidget(self.nodz)
         self.nodz.initialize()
@@ -691,13 +692,39 @@ def test(usdfile):
         if prim.HasAuthoredReferences():
             primSpec = stage.GetEditTarget().GetPrimSpecForScenePath(prim.GetPath())
             if primSpec:
+                print 'primspec GetAssetInfo'
+                print primSpec.assetInfo
                 refList = primSpec.referenceList
                 if refList:
                     print 'referenceList'.center(40, '-')
                     for ref in refList.GetAddedOrExplicitItems():
                         if ref.assetPath:
-                            print ref.assetPath
+                            print ' -', ref.assetPath
+                            print ' -', ref.customData
+                            print ' -', ref.layerOffset
         
+                refList = primSpec.payloadList
+                if refList:
+                    print 'payloadList'.center(40, '-')
+                    for ref in refList.GetAddedOrExplicitItems():
+                        if ref.assetPath:
+                            print ' -', ref.assetPath
+        
+                refList = primSpec.specializesList
+                if refList:
+                    print 'specializesList'.center(40, '-')
+                    for ref in refList.GetAddedOrExplicitItems():
+                        if ref.assetPath:
+                            print ' -', ref.assetPath
+        
+                refList = primSpec.inheritPathList
+                if refList:
+                    print 'inheritPathList'.center(40, '-')
+                    for ref in refList.GetAddedOrExplicitItems():
+                        if ref.assetPath:
+                            print ' -', ref.assetPath
+        
+                print 'done with primspec'.center(40, '-')
         """
         this doesn't quite work
         https://groups.google.com/d/msg/usd-interest/s4AM0v60uBI/sYltgp7OAgAJ
@@ -711,6 +738,10 @@ def test(usdfile):
             for x in dir(payloads):
                 if x.endswith('Items'):
                     print x, getattr(payloads, x)
+               
+            # query GetAddedOrExplicitItems for *all* entries, rather than rooting through each list?
+            print 'GetAddedOrExplicitItems'
+            print payloads.GetAddedOrExplicitItems()
             
             for payload in payloads.appendedItems:
                 pathToResolve = payload.assetPath
