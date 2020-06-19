@@ -315,117 +315,6 @@ def on_nodeMoved(nodeName, nodePos):
     print('node {0} moved to {1}'.format(nodeName, nodePos))
 
 
-class Arranger(object):
-    def __init__(self, start_node, hspace=400, vspace=100, padding=300):
-        self.voffset = 0
-        self.hspace = hspace
-        self.vspace = vspace
-        self.padding = padding
-        
-        self.start_node = start_node
-        
-        rect = start_node.scene().sceneRect()
-        self.cx = rect.right()
-        self.cy = rect.bottom()
-        
-        self.bbmin = [999999999, 999999999]
-        self.bbmax = [-999999999, -999999999]
-        
-        self.visited_nodes = []
-    
-    
-    def arrange(self):
-        self.visited_nodes = []
-        
-        pos = self.adjuster(self.start_node)
-        
-        scene = self.start_node.scene()
-        
-        # gotta adjust the scene bounding box to fit all the nodes in
-        for node in self.visited_nodes:
-            node.checkIsWithinSceneRect()
-        
-        # updateScene() forces the graph edges to redraw after the nodes have been moved
-        scene.updateScene()
-        
-        return pos
-    
-    
-    def get_max_child_count(self, node):
-        """
-        Maximum
-        :param node:
-        :return:
-        """
-        ret = 0
-        for conn in node.sockets['layers'].connections:
-            ret += 1
-            node_coll = [x for x in node.scene().nodes.values() if x.name == conn.plugNode]
-            connected_node = node_coll[0]
-            
-            ret += self.get_max_child_count(connected_node)
-        
-        return ret
-    
-    
-    def adjust_bbox(self, pos):
-        if pos.x() < self.bbmin[0]:
-            self.bbmin[0] = pos.x()
-        if pos.x() > self.bbmax[0]:
-            self.bbmax[0] = pos.x()
-        
-        if pos.y() < self.bbmin[1]:
-            self.bbmin[1] = pos.y()
-        if pos.y() > self.bbmax[1]:
-            self.bbmax[1] = pos.y()
-    
-    
-    def adjuster(self, start_node, depth=0):
-        
-        start_voffset = self.voffset
-        connected_nodes = []
-        for i, conn in enumerate(start_node.sockets['layers'].connections):
-            node_coll = [x for x in start_node.scene().nodes.values() if x.name == conn.plugNode]
-            connected_nodes.append(node_coll[0])
-        for i, conn in enumerate(start_node.sockets['clips'].connections):
-            node_coll = [x for x in start_node.scene().nodes.values() if x.name == conn.plugNode]
-            connected_nodes.append(node_coll[0])
-        
-        if connected_nodes:
-            # it has children. average it's position vertically
-            avg = 0
-            for node in connected_nodes:
-                if node not in self.visited_nodes:
-                    avg += self.adjuster(node, depth=depth + 1)
-                    self.visited_nodes.append(node)
-            avg /= len(connected_nodes)
-            
-            if len(connected_nodes) == 1:
-                # if just one child node, copy the vertical position
-                pos = QtCore.QPointF(self.cx - depth * self.hspace, connected_nodes[0].pos().y())
-            else:
-                # more than one child - use the average
-                pos = QtCore.QPointF(self.cx - depth * self.hspace, self.cy - avg * self.vspace)
-            
-            start_node.setPos(pos)
-            self.adjust_bbox(pos)
-        
-        else:
-            if start_node not in self.visited_nodes:
-                # nothing connected. stack it's position vertically
-                pos = QtCore.QPointF(self.cx - depth * self.hspace, self.cy - (self.voffset) * self.vspace)
-                start_node.setPos(pos)
-                self.voffset += 1
-                self.adjust_bbox(pos)
-                self.visited_nodes.append(start_node)
-        
-        if depth == 0:
-            # redraw all the connections and stuff
-            start_node.scene().updateScene()
-        
-        return start_voffset + (self.voffset - start_voffset) * 0.5
-
-
 class FindNodeWindow(QtWidgets.QDialog):
     def __init__(self, nodz, parent=None):
         self.nodz = nodz
@@ -644,14 +533,15 @@ class NodeGraphWindow(QtWidgets.QDialog):
             self.nodz.createConnection(end, 'out', start, port)
         
         # layout nodes!
-        Arranger(self.root_node, vspace=150).arrange()
+        self.nodz.arrangeGraph(self.root_node)
         # self.nodz.autoLayoutGraph()
         self.nodz._focus()
     
     
     def layout_nodes(self):
         # layout nodes!
-        Arranger(self.root_node, vspace=150).arrange()
+        self.nodz.arrangeGraph(self.root_node)
+        
         self.nodz._focus(all=True)
     
     
