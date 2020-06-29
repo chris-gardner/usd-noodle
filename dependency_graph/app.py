@@ -385,7 +385,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
             self.restoreGeometry(self.settings.value("geometry"))
         else:
             self.resize(600, 400)
-        
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint);
         lay = QtWidgets.QVBoxLayout()
         self.setLayout(lay)
         
@@ -581,4 +581,3 @@ def main(usdfile=None):
     par = QtWidgets.QApplication.activeWindow()
     win = NodeGraphWindow(usdfile=usdfile, parent=par)
     win.show()
-
