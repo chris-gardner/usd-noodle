@@ -1,7 +1,7 @@
 # usd-dependency-graph
 Pretty node graph showing dependencies of a USD file
 
-##Cloning
+## Cloning
 
 Make sure you clone with submodules. Like this:
 
