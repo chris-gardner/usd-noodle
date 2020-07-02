@@ -262,10 +262,11 @@ def prim_traverse(usdfile):
             print 'layer.owner', spec.layer.owner
             print 'layer.subLayerPaths', spec.layer.subLayerPaths
             if spec.hasPayloads:
-                print 'GetPayloadList', spec.payloadList
-                for itemlist in [spec.payloadList.appendedItems, spec.payloadList.explicitItems,
-                                 spec.payloadList.addedItems,
-                                 spec.payloadList.prependedItems, spec.payloadList.orderedItems]:
+                payloadList = spec.payloadList
+                print 'GetPayloadList', payloadList
+                for itemlist in [payloadList.appendedItems, payloadList.explicitItems,
+                                 payloadList.addedItems,
+                                 payloadList.prependedItems, payloadList.orderedItems]:
                     if itemlist:
                         for payload in itemlist:
                             payload_path = payload.assetPath
@@ -273,16 +274,35 @@ def prim_traverse(usdfile):
                             print payload, payload_path
                             with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
                                 resolver = Ar.GetResolver()
-                                # we resolve the payload path realtive to the primSpec layer path (layer.identifier)
+                                # we resolve the payload path relative to the primSpec layer path (layer.identifier)
                                 # far more likely to be correct. i hope
                                 resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, payload_path)
                                 print 'payload resolvedpath', resolvedpath
-                
             
             # if spec.hasSpecializes:
             # print 'specializesList', spec.specializesList
+            
+            # references operate the same to payloads
             if spec.hasReferences:
-                print 'referenceList', spec.referenceList
+                reflist = spec.referenceList
+                print 'referenceList', reflist
+                print 'orderedItems', reflist.orderedItems
+                for itemlist in [reflist.appendedItems, reflist.explicitItems,
+                                 reflist.addedItems,
+                                 reflist.prependedItems, reflist.orderedItems]:
+                    if itemlist:
+                        for reference in itemlist:
+                            print 'reference:', reference
+                            reference_path = reference.assetPath
+                            with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
+                                resolver = Ar.GetResolver()
+                                # we resolve the payload path relative to the primSpec layer path (layer.identifier)
+                                # far more likely to be correct. i hope
+                                resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, reference_path)
+                                print 'reference resolvedpath', resolvedpath
+                
+                raise RuntimeError("poo")
+            
             # if spec.hasVariantSetNames:
             # print dir(spec)
             if spec.variantSets:
@@ -299,8 +319,6 @@ def prim_traverse(usdfile):
                     # dict with the variant name as a key nad a Sdf.Find object as the value
                     print 'variant', varset.variants
                     print 'variant_names:', varset.variants.keys()
-                    # the current variant?
-                    print 'variantList', varset.variantList
                     
                     # SdfVariantSetSpec doesn't seem to know which is the current variant
                     # but it's a short hop to get the variant set object
