@@ -361,7 +361,11 @@ def prim_traverse(usdfile):
                     # but it's a short hop to get the variant set object
                     # and perhaps this is the best of both worlds
                     thisvarset = prim.GetVariantSet(varset.name)
-                    print 'current variant:', thisvarset.GetVariantSelection()
+                    current_variant_name = thisvarset.GetVariantSelection()
+                    print 'current variant:', current_variant_name
+                    current_variant = varset.variants[current_variant_name]
+                    current_variant_path = current_variant.layer.realPath
+                    print current_variant_path
                     
                     # print 'GetVariantNames', spec.GetVariantNames(varset)
             # def, over or class
