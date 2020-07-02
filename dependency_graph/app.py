@@ -158,72 +158,10 @@ class DependencyWalker(object):
         for prim in stage.Traverse():
             # print(prim.GetPath())
             
-            """
-            this doesn't quite work
-            https://groups.google.com/d/msg/usd-interest/s4AM0v60uBI/sYltgp7OAgAJ
-            """
-            if prim.HasPayload():
-                # print 'payloads'.center(40, '-')
-                # this is apparently hacky, but it works, yah?
-                # https://groups.google.com/d/msg/usd-interest/s4AM0v60uBI/q-okjU2RCAAJ
-                payloads = prim.GetMetadata("payload")
-                # so there's lots of lists that end in "items"
-                # probably better to access them manually
-                for x in dir(payloads):
-                    if x.endswith('Items'):
-                        pass
-                
-                for payload in payloads.appendedItems:
-                    pathToResolve = payload.assetPath
-                    # print 'assetPath:', pathToResolve
-                    primSpec = prim.GetPrimStack()[0]
-                    # get the layer from the prim
-                    anchorPath = primSpec.layer.identifier
-                    
-                    with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
-                        resolver = Ar.GetResolver()
-                        # relative to layer path?
-                        pathToResolve = resolver.AnchorRelativePath(anchorPath, pathToResolve)
-                        # print 'pathToResolve', pathToResolve
-                        
-                        # this should probably work, but no
-                        resolvedPath = resolver.Resolve(pathToResolve)
-                        # print 'resolvedPath', resolvedPath
-                        if resolvedPath:
-                            # sometimes the resolved paths are zero length strings
-                            if not resolvedPath in self.nodes:
-                                info = {}
-                                info['online'] = os.path.isfile(resolvedPath)
-                                info['path'] = resolvedPath
-                                info['type'] = 'payload'
-                                
-                                self.nodes[resolvedPath] = info
-                            
-                            if not [anchorPath, resolvedPath] in self.edges:
-                                self.edges.append([anchorPath, resolvedPath])
-            
-            # does this prim have variant sets?
-            if prim.HasVariantSets():
-                # print 'variantsets'.center(30, '-')
-                
-                # list all the variant sets avalable on this prim
-                sets = prim.GetVariantSets()
-                
-                # you can't iterate over the sets.
-                # you have to get the name and do a GetVariantSet(<<set name>>)
-                # TypeError: 'VariantSets' object is not iterable
-                # maybe USD 20?
-                for varset in sets.GetNames():
-                    # print 'variant set name:', varset
-                    # get the variant set by name
-                    thisvarset = prim.GetVariantSet(varset)
-                    
-                    # the available variants
-                    # print thisvarset.GetVariantNames()
-                    # the current variant
-                    # print thisvarset.GetVariantSelection()
-                    # print varset
-            
+            # clips - this seems to be the way to do things
+            # clips are not going to be picked up by the stage layers inspection stuff
+            # apparently they're expensive. whatever.
+            # no prim stack shennanigans for us
             # gotta get a clip on each prim and then test it for paths?
             clips = Usd.ClipsAPI(prim)
             if clips.GetClipAssetPaths():
@@ -264,13 +202,23 @@ class DependencyWalker(object):
                 # TODO : make more efficient - looping over everything currently
                 # TODO: validate presence of all files in the clip seq. bg thread?
                 
+                # GetClipSets seems to be crashing this houdini build - clips.GetClipSets()
+                clip_sets = clips.GetClips().keys()
+                
                 # print 'GetClipManifestAssetPath', clips.GetClipManifestAssetPath().resolvedPath
                 # this is a good one - resolved asset paths too
-                for path in clips.GetClipAssetPaths():
-                    # print path, type(path)
-                    # print path.resolvedPath
-                    
+                for clipSet in clip_sets:
+                    print 'CLIP_SET:', clipSet
+                    # layer that hosts list clip
+                    # but this is the MANIFEST path
+                    # not really correct. it'll have to do for now.
                     layer = clips.GetClipManifestAssetPath().resolvedPath
+                    
+                    for path in clips.GetClipAssetPaths(clipSet):
+                        # print path, type(path)
+                        # print path.resolvedPath
+                        pass
+                    
                     if not nodeName in self.nodes:
                         info = {}
                         info['online'] = allFilesFound
