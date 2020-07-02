@@ -168,6 +168,128 @@ def test(usdfile):
     print 'end test'.center(40, '-')
 
 
+def prim_traverse(usdfile):
+    ret = []
+    stage = Usd.Stage.Open(usdfile)
+    
+    for prim in stage.Traverse():
+        
+        """
+        this doesn't quite work
+        https://groups.google.com/d/msg/usd-interest/s4AM0v60uBI/sYltgp7OAgAJ
+        """
+        if prim.HasPayload():
+            print 'payloads'.center(40, '-')
+            # this is apparently hacky, but it works, yah?
+            # https://groups.google.com/d/msg/usd-interest/s4AM0v60uBI/q-okjU2RCAAJ
+            payloads = prim.GetMetadata("payload")
+            # so there's lots of lists
+            for x in dir(payloads):
+                if x.endswith('Items'):
+                    print x, getattr(payloads, x)
+            
+            # query GetAddedOrExplicitItems for *all* entries, rather than rooting through each list?
+            print 'GetAddedOrExplicitItems'
+            print payloads.GetAddedOrExplicitItems()
+            
+            for itemlist in [payloads.appendedItems, payloads.explicitItems, payloads.addedItems,
+                             payloads.prependedItems, payloads.orderedItems]:
+                for payload in itemlist:
+                    pathToResolve = payload.assetPath
+                    print 'assetPath:', pathToResolve
+                    primSpec = prim.GetPrimStack()[0]
+                    # get the layer from the prim
+                    anchorPath = primSpec.layer.identifier
+                    
+                    with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
+                        resolver = Ar.GetResolver()
+                        # relative to layer path?
+                        pathToResolve = resolver.AnchorRelativePath(anchorPath, pathToResolve)
+                        print 'pathToResolve', pathToResolve
+                        
+                        # this should probably work, but no
+                        resolvedPath = resolver.Resolve(pathToResolve)
+                        print 'resolvedPath', resolvedPath
+        
+        # does this prim have variant sets?
+        if prim.HasVariantSets():
+            print 'variantsets'.center(30, '-')
+            
+            # list all the variant sets avalable on this prim
+            sets = prim.GetVariantSets()
+            
+            # you can't iterate over the sets.
+            # you have to get the name and do a GetVariantSet(<<set name>>)
+            # TypeError: 'VariantSets' object is not iterable
+            # maybe USD 20?
+            for varset in sets.GetNames():
+                print 'variant set name:', varset
+                # get the variant set by name
+                thisvarset = prim.GetVariantSet(varset)
+                
+                # the available variants
+                print thisvarset.GetVariantNames()
+                # the current variant
+                print thisvarset.GetVariantSelection()
+                print varset
+        
+        # gotta get a clip on each prim and then test it for paths?
+        clips = Usd.ClipsAPI(prim)
+        if clips.GetClipAssetPaths():
+            print 'CLIPS'.center(30, '-')
+            # dict of clip info. full of everything
+            # key is the clip *name*
+            print clips.GetClips()
+            # this is a good one - resolved asset paths too
+            for path in clips.GetClipAssetPaths():
+                print path, type(path)
+                print path.resolvedPath
+            print 'GetClipPrimPath', clips.GetClipPrimPath()
+        
+        """Return a list of PrimSpecs that provide opinions for this prim (i.e.
+        the prim's metadata fields, including composition metadata).
+         specs are ordered from strongest to weakest opinion."""
+        primStack = prim.GetPrimStack()
+        print 'GetPrimStack'.center(30, '-')
+        for spec in primStack:
+            # print spec
+            ret.append(spec.path.pathString)
+            # print 'layer.realPath', spec.layer.realPath
+            print 'path.pathString', spec.path.pathString
+            print 'layer.identifier', spec.layer.identifier
+            print 'layer.owner', spec.layer.owner
+            print 'layer.subLayerPaths', spec.layer.subLayerPaths
+            if spec.hasPayloads:
+                print 'GetPayloadList', spec.payloadList
+                raise RuntimeError("poo")
+            # if spec.hasSpecializes:
+            # print 'specializesList', spec.specializesList
+            if spec.hasReferences:
+                print 'referenceList', spec.referenceList
+            # if spec.hasVariantSetNames:
+            # print dir(spec)
+            if spec.variantSets:
+                print 'variantSets', spec.variantSets
+                for varset in spec.variantSets:
+                    # SdfVariantSetSpec objects
+                    print varset
+                    # the available variants
+                    print varset.variants
+                    # the current variant
+                    print varset.variantList
+                    
+                    # print 'GetVariantNames', spec.GetVariantNames(varset)
+            # def, over or class
+            print 'GetSpecifier', spec.specifier
+            # component,
+            print 'GetKind', spec.kind
+            print '--'
+        
+        print prim.HasPayload()
+        print prim.HasAuthoredPayloads()
+    return ret
+
+
 def walkStageLayers(layer, level=1):
     # cut down verion of our recursive layer walk function
     layer_path = layer.realPath
@@ -224,5 +346,12 @@ def layer_walk_exploring(usdfile):
     # programming blah blah blah
     # disadvantage is that it doesn't give you the *relationships* between the layers
     # which is what we're interested in here
+    
+    prim_stack = prim_traverse(usdfile)
+    prim_stack = set(prim_stack)
+    # print 'prim_stack:'.center(20, '-')
+    # print prim_stack
+    print 'diff:'.center(20, '-')
+    print walk_layers.difference(prim_stack)
     
     print 'layer_walk_exploring'.center(40, '-')
