@@ -188,10 +188,6 @@ def prim_traverse(usdfile):
                 if x.endswith('Items'):
                     print x, getattr(payloads, x)
             
-            # query GetAddedOrExplicitItems for *all* entries, rather than rooting through each list?
-            print 'GetAddedOrExplicitItems'
-            print payloads.GetAddedOrExplicitItems()
-            
             for itemlist in [payloads.appendedItems, payloads.explicitItems, payloads.addedItems,
                              payloads.prependedItems, payloads.orderedItems]:
                 for payload in itemlist:
@@ -200,10 +196,14 @@ def prim_traverse(usdfile):
                     primSpec = prim.GetPrimStack()[0]
                     # get the layer from the prim
                     anchorPath = primSpec.layer.identifier
-                    
+                    print 'anchorPath', anchorPath
                     with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
                         resolver = Ar.GetResolver()
-                        # relative to layer path?
+                        # relative to layer path? NOPE
+                        # problem here is that the layer path is NOT
+                        # really what the payload path is relative to
+                        # and why it's better to go through the primstack - you can get a
+                        # proper anchor path
                         pathToResolve = resolver.AnchorRelativePath(anchorPath, pathToResolve)
                         print 'pathToResolve', pathToResolve
                         
@@ -228,10 +228,11 @@ def prim_traverse(usdfile):
                 thisvarset = prim.GetVariantSet(varset)
                 
                 # the available variants
-                print thisvarset.GetVariantNames()
+                print 'variant names:', thisvarset.GetVariantNames()
                 # the current variant
-                print thisvarset.GetVariantSelection()
+                print 'current variant:', thisvarset.GetVariantSelection()
                 print varset
+                print thisvarset.GetPrim()
         
         # gotta get a clip on each prim and then test it for paths?
         clips = Usd.ClipsAPI(prim)
@@ -246,6 +247,7 @@ def prim_traverse(usdfile):
                 print path.resolvedPath
             print 'GetClipPrimPath', clips.GetClipPrimPath()
         
+        # from the docs:
         """Return a list of PrimSpecs that provide opinions for this prim (i.e.
         the prim's metadata fields, including composition metadata).
          specs are ordered from strongest to weakest opinion."""
@@ -261,7 +263,22 @@ def prim_traverse(usdfile):
             print 'layer.subLayerPaths', spec.layer.subLayerPaths
             if spec.hasPayloads:
                 print 'GetPayloadList', spec.payloadList
-                raise RuntimeError("poo")
+                for itemlist in [spec.payloadList.appendedItems, spec.payloadList.explicitItems,
+                                 spec.payloadList.addedItems,
+                                 spec.payloadList.prependedItems, spec.payloadList.orderedItems]:
+                    if itemlist:
+                        for payload in itemlist:
+                            payload_path = payload.assetPath
+                            
+                            print payload, payload_path
+                            with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
+                                resolver = Ar.GetResolver()
+                                # we resolve the payload path realtive to the primSpec layer path (layer.identifier)
+                                # far more likely to be correct. i hope
+                                resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, payload_path)
+                                print 'payload resolvedpath', resolvedpath
+                
+            
             # if spec.hasSpecializes:
             # print 'specializesList', spec.specializesList
             if spec.hasReferences:
@@ -273,10 +290,23 @@ def prim_traverse(usdfile):
                 for varset in spec.variantSets:
                     # SdfVariantSetSpec objects
                     print varset
+                    print 'variant set name', varset.name
+                    print 'owner', varset.owner
+                    print 'isInert', varset.isInert
+                    print 'layer', varset.layer
+                    
                     # the available variants
-                    print varset.variants
-                    # the current variant
-                    print varset.variantList
+                    # dict with the variant name as a key nad a Sdf.Find object as the value
+                    print 'variant', varset.variants
+                    print 'variant_names:', varset.variants.keys()
+                    # the current variant?
+                    print 'variantList', varset.variantList
+                    
+                    # SdfVariantSetSpec doesn't seem to know which is the current variant
+                    # but it's a short hop to get the variant set object
+                    # and perhaps this is the best of both worlds
+                    thisvarset = prim.GetVariantSet(varset.name)
+                    print 'current variant:', thisvarset.GetVariantSelection()
                     
                     # print 'GetVariantNames', spec.GetVariantNames(varset)
             # def, over or class
