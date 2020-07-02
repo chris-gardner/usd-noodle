@@ -235,6 +235,8 @@ def prim_traverse(usdfile):
                 print thisvarset.GetPrim()
         
         # clips - this seems to be the way to do things
+        # clips are not going to be picked up by the stage layers inspection stuff
+        # apparently they're expensive. whatever.
         # no prim stack shennanigans for us
         # gotta get a clip on each prim and then test it for paths?
         clips = Usd.ClipsAPI(prim)
@@ -243,23 +245,23 @@ def prim_traverse(usdfile):
             # dict of clip info. full of everything
             # key is the clip set *name*
             print clips.GetClips()
-
+            
             # GetClipSets seems to be crashing this houdini build - clips.GetClipSets()
             clip_sets = clips.GetClips().keys()
             print 'clip_sets', clip_sets
-
+            
             # this is a good one - resolved asset paths too
             for clipSet in clip_sets:
                 print 'CLIP_SET:', clipSet
                 for path in clips.GetClipAssetPaths(clipSet):
                     print path, type(path)
                     print 'resolved path:', path.resolvedPath
-                    print 'resolved path:', path.resolvedPath
+                    ret.append(path.resolvedPath)
+                
                 print 'GetClipTemplateAssetPath:', clips.GetClipTemplateAssetPath(clipSet)
                 print 'GetClipAssetPaths:', clips.GetClipAssetPaths()
-
+            
             print 'GetClipPrimPath', clips.GetClipPrimPath()
-            raise RuntimeError("poo")
         
         # from the docs:
         """Return a list of PrimSpecs that provide opinions for this prim (i.e.
@@ -269,7 +271,6 @@ def prim_traverse(usdfile):
         print 'GetPrimStack'.center(30, '-')
         for spec in primStack:
             # print spec
-            ret.append(spec.path.pathString)
             # print 'layer.realPath', spec.layer.realPath
             print 'path.pathString', spec.path.pathString
             print 'layer.identifier', spec.layer.identifier
@@ -293,8 +294,8 @@ def prim_traverse(usdfile):
                                 # far more likely to be correct. i hope
                                 resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, payload_path)
                                 print 'payload resolvedpath', resolvedpath
-                                
-                                
+                                ret.append(resolvedpath)
+            
             # the docs say there's a HasSpecializes method
             # no, there is not. at least in this build of houdini 18.0.453
             # if spec.HasSpecializes:
@@ -312,9 +313,10 @@ def prim_traverse(usdfile):
                             resolver = Ar.GetResolver()
                             resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, specialize_path)
                             spec_paths.append(resolvedpath)
+                            ret.append(resolvedpath)
+                            
             if spec_paths:
                 print 'specializesList', spec.specializesList
-                raise RuntimeError("poo")
 
             """
             
@@ -336,7 +338,7 @@ def prim_traverse(usdfile):
                                 # far more likely to be correct. i hope
                                 resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, reference_path)
                                 print 'reference resolvedpath', resolvedpath
-                
+                                ret.append(resolvedpath)
             
             # if spec.hasVariantSetNames:
             # print dir(spec)
@@ -432,9 +434,13 @@ def layer_walk_exploring(usdfile):
     
     prim_stack = prim_traverse(usdfile)
     prim_stack = set(prim_stack)
+    
     # print 'prim_stack:'.center(20, '-')
     # print prim_stack
+    # print 'walk_layers:'.center(20, '-')
+    # print walk_layers
+    
     print 'diff:'.center(20, '-')
-    print walk_layers.difference(prim_stack)
+    print prim_stack.difference(walk_layers)
     
     print 'layer_walk_exploring'.center(40, '-')
