@@ -209,26 +209,26 @@ class DependencyWalker(object):
                 # this is a good one - resolved asset paths too
                 for clipSet in clip_sets:
                     print 'CLIP_SET:', clipSet
-                    # layer that hosts list clip
-                    # but this is the MANIFEST path
-                    # not really correct. it'll have to do for now.
-                    layer = clips.GetClipManifestAssetPath().resolvedPath
-                    
                     for path in clips.GetClipAssetPaths(clipSet):
                         # print path, type(path)
                         # print path.resolvedPath
                         pass
                     
-                    if not nodeName in self.nodes:
-                        info = {}
-                        info['online'] = allFilesFound
-                        info['path'] = nodeName
-                        info['type'] = 'clip'
-                        
-                        self.nodes[nodeName] = info
+                # layer that hosts list clip
+                # but this is the MANIFEST path
+                # not really correct. it'll have to do for now.
+                layer = clips.GetClipManifestAssetPath().resolvedPath
+                
+                if not nodeName in self.nodes:
+                    info = {}
+                    info['online'] = allFilesFound
+                    info['path'] = nodeName
+                    info['type'] = 'clip'
                     
-                    if not [layer, nodeName] in self.edges:
-                        self.edges.append([layer, nodeName])
+                    self.nodes[nodeName] = info
+                
+                if not [layer, nodeName] in self.edges:
+                    self.edges.append([layer, nodeName])
         
         # print 'end test'.center(40, '-')
     
