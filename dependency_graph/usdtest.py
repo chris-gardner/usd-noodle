@@ -261,6 +261,7 @@ def prim_traverse(usdfile):
             print 'layer.identifier', spec.layer.identifier
             print 'layer.owner', spec.layer.owner
             print 'layer.subLayerPaths', spec.layer.subLayerPaths
+            print 'specifier', spec.specifier
             if spec.hasPayloads:
                 payloadList = spec.payloadList
                 print 'GetPayloadList', payloadList
@@ -278,9 +279,30 @@ def prim_traverse(usdfile):
                                 # far more likely to be correct. i hope
                                 resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, payload_path)
                                 print 'payload resolvedpath', resolvedpath
-            
-            # if spec.hasSpecializes:
-            # print 'specializesList', spec.specializesList
+                                
+                                
+            # the docs say there's a HasSpecializes method
+            # no, there is not. at least in this build of houdini 18.0.453
+            # if spec.HasSpecializes:
+            # let's just ignore specialize for the time being
+            """
+            specializesList = spec.specializesList
+            spec_paths = []
+            for itemlist in [specializesList.appendedItems, specializesList.explicitItems,
+                             specializesList.addedItems,
+                             specializesList.prependedItems, specializesList.orderedItems]:
+                if itemlist:
+                    for specialize in itemlist:
+                        specialize_path = specialize.assetPath
+                        with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
+                            resolver = Ar.GetResolver()
+                            resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, specialize_path)
+                            spec_paths.append(resolvedpath)
+            if spec_paths:
+                print 'specializesList', spec.specializesList
+                raise RuntimeError("poo")
+
+            """
             
             # references operate the same to payloads
             if spec.hasReferences:
@@ -301,7 +323,6 @@ def prim_traverse(usdfile):
                                 resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, reference_path)
                                 print 'reference resolvedpath', resolvedpath
                 
-                raise RuntimeError("poo")
             
             # if spec.hasVariantSetNames:
             # print dir(spec)
