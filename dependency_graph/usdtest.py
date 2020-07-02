@@ -1,5 +1,7 @@
 from pxr import Usd, Sdf, Ar
 
+import os.path
+
 
 def test(usdfile):
     print 'test'.center(40, '-')
@@ -164,3 +166,63 @@ def test(usdfile):
         print prim.HasAuthoredPayloads()
     
     print 'end test'.center(40, '-')
+
+
+def walkStageLayers(layer, level=1):
+    # cut down verion of our recursive layer walk function
+    layer_path = layer.realPath
+    ret = [layer_path]
+    layer_basepath = os.path.dirname(layer_path)
+    count = 0
+    
+    for ref in layer.GetExternalReferences():
+        if not ref:
+            # sometimes a ref can be a zero length string. whyyyyyyyyy?
+            # seeing this in multiverse esper_room example
+            continue
+        
+        refpath = os.path.normpath(os.path.join(layer_basepath, ref))
+        
+        # if you wanna construct a full path yourself
+        # you can manually load a SdfLayer like this
+        # sub_layer = Sdf.Layer.Find(refpath)
+        
+        # or you can use FindRelativeToLayer to do the dirty work
+        # seems to operate according to the composition rules (variants blah blah)
+        # ie, it *may* not return a layer if the stage is set to not load that layer
+        sub_layer = Sdf.Layer.FindRelativeToLayer(layer, ref)
+        
+        if sub_layer:
+            ret.extend(walkStageLayers(sub_layer, level=level + 1))
+    return ret
+
+
+def layer_walk_exploring(usdfile):
+    print 'layer_walk_exploring'.center(40, '-')
+    stage = Usd.Stage.Open(usdfile)
+    rootLayer = stage.GetRootLayer()
+    
+    used_layers = []
+    print 'GetUsedLayers'.center(40, '-')
+    # things that are in use, apparntly
+    # includeClipLayers, like the googles, appear to do nothing
+    for x in stage.GetUsedLayers(includeClipLayers=False):
+        used_layers.append(x.realPath)
+    used_layers = set(used_layers)
+    print 'used_layers'.center(20, '-')
+    print used_layers
+    
+    walk_layers = set(walkStageLayers(rootLayer))
+    print 'walk_layers'.center(20, '-')
+    print walk_layers
+    
+    print 'diff:'.center(20, '-')
+    print walk_layers.difference(used_layers)
+    
+    # so layer walk and getUsedLayers appear to give the same results
+    # getUsedLayers may be faster, given that it's not recursive
+    # programming blah blah blah
+    # disadvantage is that it doesn't give you the *relationships* between the layers
+    # which is what we're interested in here
+    
+    print 'layer_walk_exploring'.center(40, '-')
