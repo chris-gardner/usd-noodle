@@ -234,18 +234,32 @@ def prim_traverse(usdfile):
                 print varset
                 print thisvarset.GetPrim()
         
+        # clips - this seems to be the way to do things
+        # no prim stack shennanigans for us
         # gotta get a clip on each prim and then test it for paths?
         clips = Usd.ClipsAPI(prim)
         if clips.GetClipAssetPaths():
             print 'CLIPS'.center(30, '-')
             # dict of clip info. full of everything
-            # key is the clip *name*
+            # key is the clip set *name*
             print clips.GetClips()
+
+            # GetClipSets seems to be crashing this houdini build - clips.GetClipSets()
+            clip_sets = clips.GetClips().keys()
+            print 'clip_sets', clip_sets
+
             # this is a good one - resolved asset paths too
-            for path in clips.GetClipAssetPaths():
-                print path, type(path)
-                print path.resolvedPath
+            for clipSet in clip_sets:
+                print 'CLIP_SET:', clipSet
+                for path in clips.GetClipAssetPaths(clipSet):
+                    print path, type(path)
+                    print 'resolved path:', path.resolvedPath
+                    print 'resolved path:', path.resolvedPath
+                print 'GetClipTemplateAssetPath:', clips.GetClipTemplateAssetPath(clipSet)
+                print 'GetClipAssetPaths:', clips.GetClipAssetPaths()
+
             print 'GetClipPrimPath', clips.GetClipPrimPath()
+            raise RuntimeError("poo")
         
         # from the docs:
         """Return a list of PrimSpecs that provide opinions for this prim (i.e.
