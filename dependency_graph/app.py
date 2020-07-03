@@ -12,6 +12,7 @@ from vendor.Nodz import nodz_main
 from . import text_view
 
 import re
+from pprint import pprint
 
 
 digitSearch = re.compile(r'\b\d+\b')
@@ -57,6 +58,7 @@ class DependencyWalker(object):
         
         self.walkStageLayers(rootLayer)
         self.walkStagePrims(self.usdfile)
+        # raise RuntimeError("poo")
     
     
     def walkStageLayers(self, layer, level=1):
@@ -158,6 +160,150 @@ class DependencyWalker(object):
         for prim in stage.Traverse():
             # print(prim.GetPath())
             
+            # from the docs:
+            """Return a list of PrimSpecs that provide opinions for this prim (i.e.
+            the prim's metadata fields, including composition metadata).
+             specs are ordered from strongest to weakest opinion."""
+            primStack = prim.GetPrimStack()
+            # print 'GetPrimStack'.center(30, '-')
+            for spec in primStack:
+                # print spec
+                # print 'layer.realPath', spec.layer.realPath
+                # print 'path.pathString', spec.path.pathString
+                # print 'layer.identifier', spec.layer.identifier
+                # print 'layer.owner', spec.layer.owner
+                # print 'layer.subLayerPaths', spec.layer.subLayerPaths
+                # print 'specifier', spec.specifier
+                if spec.hasPayloads:
+                    payloadList = spec.payloadList
+                    # print 'GetPayloadList', payloadList
+                    for itemlist in [payloadList.appendedItems, payloadList.explicitItems,
+                                     payloadList.addedItems,
+                                     payloadList.prependedItems, payloadList.orderedItems]:
+                        if itemlist:
+                            for payload in itemlist:
+                                payload_path = payload.assetPath
+                                
+                                # print payload, payload_path
+                                with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
+                                    resolver = Ar.GetResolver()
+                                    # we resolve the payload path relative to the primSpec layer path (layer.identifier)
+                                    # far more likely to be correct. i hope
+                                    resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, payload_path)
+                                    # print 'payload resolvedpath', resolvedpath
+                                    
+                                    info = {}
+                                    info['online'] = os.path.isfile(resolvedpath)
+                                    info['path'] = resolvedpath
+                                    info['type'] = 'payload'
+                                    
+                                    self.nodes[resolvedpath] = info
+                                    if spec.layer.identifier != resolvedpath:
+                                        if not [spec.layer.identifier, resolvedpath] in self.edges:
+                                            self.edges.append([spec.layer.identifier, resolvedpath])
+                
+                # the docs say there's a HasSpecializes method
+                # no, there is not. at least in this build of houdini 18.0.453
+                # if spec.HasSpecializes:
+                # let's just ignore specialize for the time being
+                """
+                specializesList = spec.specializesList
+                spec_paths = []
+                for itemlist in [specializesList.appendedItems, specializesList.explicitItems,
+                                 specializesList.addedItems,
+                                 specializesList.prependedItems, specializesList.orderedItems]:
+                    if itemlist:
+                        for specialize in itemlist:
+                            specialize_path = specialize.assetPath
+                            with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
+                                resolver = Ar.GetResolver()
+                                resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, specialize_path)
+                                spec_paths.append(resolvedpath)
+                                ret.append(resolvedpath)
+
+                if spec_paths:
+                    print 'specializesList', spec.specializesList
+
+                """
+                
+                # references operate the same to payloads
+                if spec.hasReferences:
+                    reflist = spec.referenceList
+                    for itemlist in [reflist.appendedItems, reflist.explicitItems,
+                                     reflist.addedItems,
+                                     reflist.prependedItems, reflist.orderedItems]:
+                        if itemlist:
+                            for reference in itemlist:
+                                # print 'reference:', reference
+                                reference_path = reference.assetPath
+                                if reference_path:
+                                    # print reference_path
+                                    with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
+                                        resolver = Ar.GetResolver()
+                                        # we resolve the payload path relative to the primSpec layer path (layer.identifier)
+                                        # far more likely to be correct. i hope
+                                        resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier,
+                                                                                   reference_path)
+                                        # print 'reference resolvedpath:', resolvedpath
+                                        
+                                        info = {}
+                                        info['online'] = os.path.isfile(resolvedpath)
+                                        info['path'] = resolvedpath
+                                        info['type'] = 'reference'
+                                        
+                                        self.nodes[resolvedpath] = info
+                                        
+                                        if spec.layer.identifier != resolvedpath:
+                                            if not [spec.layer.identifier, resolvedpath] in self.edges:
+                                                self.edges.append([spec.layer.identifier, resolvedpath])
+                
+                # muting variants for the time being.
+                """
+                if spec.variantSets:
+                    print 'variantSets', spec.variantSets
+                    for varset in spec.variantSets:
+                        # SdfVariantSetSpec objects
+                        # print varset
+                        print 'variant set name', varset.name
+                        # print 'owner', varset.owner
+                        # print 'isInert', varset.isInert
+                        # print 'layer', varset.layer
+                        
+                        # the available variants
+                        # dict with the variant name as a key nad a Sdf.Find object as the value
+                        print 'variant', varset.variants
+                        print 'variant_names:', varset.variants.keys()
+                        
+                        # SdfVariantSetSpec doesn't seem to know which is the current variant
+                        # but it's a short hop to get the variant set object
+                        # and perhaps this is the best of both worlds
+                        thisvarset = prim.GetVariantSet(varset.name)
+                        current_variant_name = thisvarset.GetVariantSelection()
+                        print 'current variant:', current_variant_name
+                        current_variant = varset.variants[current_variant_name]
+                        print current_variant
+                        current_variant_path = current_variant.layer.realPath
+                        print 'current variant_path:', current_variant_path
+                        
+                        # info = {}
+                        # info['online'] = os.path.isfile(current_variant_path)
+                        # info['path'] = current_variant_path
+                        # info['type'] = 'variant'
+                        #
+                        # self.nodes[current_variant_path] = info
+                        #
+                        # if spec.layer.identifier != resolvedpath:
+                        #     if not [spec.layer.identifier, current_variant_path] in self.edges:
+                        #         self.edges.append([spec.layer.identifier, current_variant_path])
+                        
+                        # print 'GetVariantNames', spec.GetVariantNames(varset)
+                # def, over or class
+                # print 'GetSpecifier', spec.specifier
+                # component,
+                # print 'GetKind', spec.kind
+                # print '--'
+            """
+            
             # clips - this seems to be the way to do things
             # clips are not going to be picked up by the stage layers inspection stuff
             # apparently they're expensive. whatever.
@@ -208,12 +354,11 @@ class DependencyWalker(object):
                 # print 'GetClipManifestAssetPath', clips.GetClipManifestAssetPath().resolvedPath
                 # this is a good one - resolved asset paths too
                 for clipSet in clip_sets:
-                    print 'CLIP_SET:', clipSet
                     for path in clips.GetClipAssetPaths(clipSet):
                         # print path, type(path)
                         # print path.resolvedPath
                         pass
-                    
+                
                 # layer that hosts list clip
                 # but this is the MANIFEST path
                 # not really correct. it'll have to do for now.
@@ -428,6 +573,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         rect = nodz_scene.sceneRect()
         center = [rect.center().x(), rect.center().y()]
         
+        # pprint(x.nodes)
         nds = []
         for i, node in enumerate(x.nodes):
             
@@ -443,6 +589,14 @@ class NodeGraphWindow(QtWidgets.QDialog):
             node_preset = 'node_default'
             if info.get("type") == 'clip':
                 node_preset = 'node_clip'
+            elif info.get("type") == 'payload':
+                node_preset = 'node_payload'
+            elif info.get("type") == 'variant':
+                node_preset = 'node_variant'
+            elif info.get("type") == 'specialize':
+                node_preset = 'node_specialize'
+            elif info.get("type") == 'reference':
+                node_preset = 'node_reference'
             
             if not node_label in nds:
                 nodeA = self.nodz.createNode(name=node_label, preset=node_preset, position=pos)
