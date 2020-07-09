@@ -171,6 +171,7 @@ def test(usdfile):
 def prim_traverse(usdfile):
     ret = []
     stage = Usd.Stage.Open(usdfile)
+    count = 1
     
     for prim in stage.Traverse():
         
@@ -277,7 +278,10 @@ def prim_traverse(usdfile):
             print 'layer.owner', spec.layer.owner
             print 'layer.subLayerPaths', spec.layer.subLayerPaths
             print 'specifier', spec.specifier
+            # if not spec.variantSets:
+            
             if spec.hasPayloads:
+                print 'GetPayloadList'.center(80, '#')
                 payloadList = spec.payloadList
                 print 'GetPayloadList', payloadList
                 for itemlist in [payloadList.appendedItems, payloadList.explicitItems,
@@ -347,6 +351,30 @@ def prim_traverse(usdfile):
                 for varset in spec.variantSets:
                     # SdfVariantSetSpec objects
                     print varset
+                    
+                    # you can get a SdfPath from the variant path
+                    # https://groups.google.com/d/msg/usd-interest/Q1tjV88T1EI/_KGo3wzyBAAJ
+                    variantDefinitionPath = Sdf.Path(varset.path)
+                    print '---variantDefinitionPath'
+                    print 'variantDefinitionPath', variantDefinitionPath
+                    print type(variantDefinitionPath)
+                    print dir(variantDefinitionPath)
+                    print 'pathString', variantDefinitionPath.pathString
+                    print 'GetParentPath', variantDefinitionPath.GetParentPath()
+                    print 'GetPrimOrPrimVariantSelectionPath', variantDefinitionPath.GetPrimOrPrimVariantSelectionPath()
+                    print 'GetPrimPath', variantDefinitionPath.GetPrimPath()
+                    print 'GetVariantSelection', variantDefinitionPath.GetVariantSelection()
+                    print 'isAbsolutePath', variantDefinitionPath.IsAbsolutePath()
+                    print 'IsPrimVariantSelectionPath', variantDefinitionPath.IsPrimVariantSelectionPath()
+                    print 'GetTargetPath', variantDefinitionPath.targetPath
+                    
+                    pld = Sdf.Payload(variantDefinitionPath.pathString)
+                    print pld
+                    print pld.assetPath
+                    print dir(pld)
+                    
+                    print '---variantDefinitionPath'
+                    
                     print 'variant set name', varset.name
                     print 'owner', varset.owner
                     print 'isInert', varset.isInert
@@ -362,15 +390,66 @@ def prim_traverse(usdfile):
                     # and perhaps this is the best of both worlds
                     thisvarset = prim.GetVariantSet(varset.name)
                     current_variant_name = thisvarset.GetVariantSelection()
-                    print 'current variant:', current_variant_name
+                    print 'current variant name:', current_variant_name
                     current_variant = varset.variants[current_variant_name]
+                    
+                    for variant_name in varset.variants.keys():
+                        variant = varset.variants[variant_name]
+                        print variant.GetPrimStack()
+                        
+                        print  'variant:', variant
+                        print  'path:', variant.path
+                        print  'layer:', variant.layer
+                        print 'variant payload info:', variant.GetInfo('payload')
+                        payloads = variant.GetInfo('payload')
+                        for itemlist in [payloads.appendedItems, payloads.explicitItems, payloads.addedItems,
+                                         payloads.prependedItems, payloads.orderedItems]:
+                            for payload in itemlist:
+                                pathToResolve = payload.assetPath
+                                anchorPath = variant.layer.identifier
+                                print 'anchorPath', anchorPath
+                                with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
+                                    resolver = Ar.GetResolver()
+                                    pathToResolve = resolver.AnchorRelativePath(anchorPath, pathToResolve)
+                                    print 'pathToResolve', pathToResolve
+
+                    # print type(current_variant)
+                    # print dir(current_variant)
+                    # print 'path', current_variant.path
+                    # print 'variantSets', current_variant.variantSets
+                    # print 'layer', current_variant.layer
+                    # print 'GetMetaDataInfoKeys', current_variant.GetMetaDataInfoKeys()
+                    # print 'variant payload info:', current_variant.GetInfo('payload')
+                    #
+                    for key in current_variant.GetMetaDataInfoKeys():
+                        print key, current_variant.GetInfo(key)
+
+                    # THIS IS WAAAY WRONG
+                    # it's just giving the layer path
                     current_variant_path = current_variant.layer.realPath
+                    # the paths we are looking for are coming in as payloads
+                    # (because they can be dynamically loaded i guess)
+                    
                     print current_variant_path
                     
-                    # print 'GetVariantNames', spec.GetVariantNames(varset)
+                    x = thisvarset.GetVariantEditTarget()
+                    
+                    count += 1
+                if count > 1:
+                    print 'count', count
+                    raise RuntimeError("poo")
+                
+                # print 'GetVariantNames', spec.GetVariantNames(varset)
             # def, over or class
             print 'GetSpecifier', spec.specifier
             # component,
+            
+            print 'GetInherits'
+            inherits = prim.GetInherits().GetAllDirectInherits()
+            if inherits:
+                print inherits
+                raise RuntimeError('poo')
+            
             print 'GetKind', spec.kind
             print '--'
         
@@ -448,3 +527,34 @@ def layer_walk_exploring(usdfile):
     print prim_stack.difference(walk_layers)
     
     print 'layer_walk_exploring'.center(40, '-')
+
+
+def pcp(usdfile):
+    print 'pcp'.center(40, '-')
+    stage = Usd.Stage.Open(usdfile)
+    count = 1
+
+    for prim in stage.Traverse():
+        prim_idx = prim.GetPrimIndex()
+        # print dir(prim_idx)
+        # print prim_idx.DumpToString()
+        print prim_idx.hasAnyPayloads
+        root_node = prim_idx.rootNode
+        #print dir(root_node)
+        print 'arcType', root_node.arcType
+        print 'path', root_node.path
+        print 'layerStack', root_node.layerStack
+        print 'site', root_node.site
+        # print 'site', root_node.site.path.string
+        print type(root_node.site)
+        print dir(root_node.site.path)
+        if 'Dressoire' in str(root_node.site.path):
+            raise RuntimeError("poo")
+
+        if prim_idx.ComposeAuthoredVariantSelections():
+            print prim_idx.ComposeAuthoredVariantSelections()
+        if prim_idx.ComputePrimPropertyNames():
+            print prim_idx.ComputePrimPropertyNames()
+    print 'pcp'.center(40, '-')
+
+    
