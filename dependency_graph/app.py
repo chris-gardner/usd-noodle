@@ -44,6 +44,7 @@ class DependencyWalker(object):
     def start(self):
         self.nodes = {}
         self.edges = []
+        self.init_edges = []
         self.stage = None
         
         self.stage = Usd.Stage.Open(self.usdfile)
@@ -115,8 +116,8 @@ class DependencyWalker(object):
                 
                 self.nodes[refpath] = info
             
-            if not [layer_path, refpath] in self.edges:
-                self.edges.append([layer_path, refpath])
+            if not [layer_path, refpath] in self.init_edges:
+                self.init_edges.append([layer_path, refpath])
         
         # print 'SUBLAYERS'
         # print layer.subLayerPaths
@@ -147,8 +148,8 @@ class DependencyWalker(object):
                 
                 self.nodes[refpath] = info
             
-            if not [layer_path, refpath] in self.edges:
-                self.edges.append([layer_path, refpath])
+            if not [layer_path, refpath] in self.init_edges:
+                self.init_edges.append([layer_path, refpath])
         
         return count
     
@@ -157,7 +158,7 @@ class DependencyWalker(object):
         # print 'test'.center(40, '-')
         stage = Usd.Stage.Open(usdfile)
         
-        for prim in stage.Traverse():
+        for prim in stage.TraverseAll():
             # print(prim.GetPath())
             
             # from the docs:
@@ -165,18 +166,9 @@ class DependencyWalker(object):
             the prim's metadata fields, including composition metadata).
              specs are ordered from strongest to weakest opinion."""
             primStack = prim.GetPrimStack()
-            # print 'GetPrimStack'.center(30, '-')
             for spec in primStack:
-                # print spec
-                # print 'layer.realPath', spec.layer.realPath
-                # print 'path.pathString', spec.path.pathString
-                # print 'layer.identifier', spec.layer.identifier
-                # print 'layer.owner', spec.layer.owner
-                # print 'layer.subLayerPaths', spec.layer.subLayerPaths
-                # print 'specifier', spec.specifier
                 if spec.hasPayloads:
                     payloadList = spec.payloadList
-                    # print 'GetPayloadList', payloadList
                     for itemlist in [payloadList.appendedItems, payloadList.explicitItems,
                                      payloadList.addedItems,
                                      payloadList.prependedItems, payloadList.orderedItems]:
@@ -199,8 +191,8 @@ class DependencyWalker(object):
                                     
                                     self.nodes[resolvedpath] = info
                                     if spec.layer.identifier != resolvedpath:
-                                        if not [spec.layer.identifier, resolvedpath] in self.edges:
-                                            self.edges.append([spec.layer.identifier, resolvedpath])
+                                        if not [spec.layer.identifier, resolvedpath, 'payload'] in self.edges:
+                                            self.edges.append([spec.layer.identifier, resolvedpath, 'payload'])
                 
                 # the docs say there's a HasSpecializes method
                 # no, there is not. at least in this build of houdini 18.0.453
@@ -234,7 +226,6 @@ class DependencyWalker(object):
                                      reflist.prependedItems, reflist.orderedItems]:
                         if itemlist:
                             for reference in itemlist:
-                                # print 'reference:', reference
                                 reference_path = reference.assetPath
                                 if reference_path:
                                     # print reference_path
@@ -244,7 +235,6 @@ class DependencyWalker(object):
                                         # far more likely to be correct. i hope
                                         resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier,
                                                                                    reference_path)
-                                        # print 'reference resolvedpath:', resolvedpath
                                         
                                         info = {}
                                         info['online'] = os.path.isfile(resolvedpath)
@@ -254,55 +244,41 @@ class DependencyWalker(object):
                                         self.nodes[resolvedpath] = info
                                         
                                         if spec.layer.identifier != resolvedpath:
-                                            if not [spec.layer.identifier, resolvedpath] in self.edges:
-                                                self.edges.append([spec.layer.identifier, resolvedpath])
+                                            if not [spec.layer.identifier, resolvedpath, 'reference'] in self.edges:
+                                                self.edges.append([spec.layer.identifier, resolvedpath, 'reference'])
                 
-                # muting variants for the time being.
-                """
                 if spec.variantSets:
-                    print 'variantSets', spec.variantSets
                     for varset in spec.variantSets:
-                        # SdfVariantSetSpec objects
-                        # print varset
-                        print 'variant set name', varset.name
-                        # print 'owner', varset.owner
-                        # print 'isInert', varset.isInert
-                        # print 'layer', varset.layer
-                        
-                        # the available variants
-                        # dict with the variant name as a key nad a Sdf.Find object as the value
-                        print 'variant', varset.variants
-                        print 'variant_names:', varset.variants.keys()
-                        
-                        # SdfVariantSetSpec doesn't seem to know which is the current variant
-                        # but it's a short hop to get the variant set object
-                        # and perhaps this is the best of both worlds
                         thisvarset = prim.GetVariantSet(varset.name)
                         current_variant_name = thisvarset.GetVariantSelection()
-                        print 'current variant:', current_variant_name
                         current_variant = varset.variants[current_variant_name]
-                        print current_variant
-                        current_variant_path = current_variant.layer.realPath
-                        print 'current variant_path:', current_variant_path
-                        
-                        # info = {}
-                        # info['online'] = os.path.isfile(current_variant_path)
-                        # info['path'] = current_variant_path
-                        # info['type'] = 'variant'
-                        #
-                        # self.nodes[current_variant_path] = info
-                        #
-                        # if spec.layer.identifier != resolvedpath:
-                        #     if not [spec.layer.identifier, current_variant_path] in self.edges:
-                        #         self.edges.append([spec.layer.identifier, current_variant_path])
-                        
-                        # print 'GetVariantNames', spec.GetVariantNames(varset)
+                        for variant_name in varset.variants.keys():
+                            variant = varset.variants[variant_name]
+                            
+                            # todo: put variant info onto layer
+                            
+                            # for key in variant.GetMetaDataInfoKeys():
+                            #     print key, variant.GetInfo(key)
+                            
+                            # variants that are linked to payloads
+                            # variants can have other mechanisms, but sometimes they're a payload
+                            payloads = variant.GetInfo('payload')
+                            for itemlist in [payloads.appendedItems, payloads.explicitItems, payloads.addedItems,
+                                             payloads.prependedItems, payloads.orderedItems]:
+                                for payload in itemlist:
+                                    pathToResolve = payload.assetPath
+                                    anchorPath = variant.layer.identifier
+                                    with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
+                                        resolver = Ar.GetResolver()
+                                        resolvedpath = resolver.AnchorRelativePath(anchorPath, pathToResolve)
+                                        if not [anchorPath, resolvedpath, 'payload'] in self.edges:
+                                            self.edges.append([anchorPath, resolvedpath, 'payload'])
+                
                 # def, over or class
                 # print 'GetSpecifier', spec.specifier
                 # component,
                 # print 'GetKind', spec.kind
                 # print '--'
-            """
             
             # clips - this seems to be the way to do things
             # clips are not going to be picked up by the stage layers inspection stuff
@@ -372,8 +348,8 @@ class DependencyWalker(object):
                     
                     self.nodes[nodeName] = info
                 
-                if not [layer, nodeName] in self.edges:
-                    self.edges.append([layer, nodeName])
+                if not [layer, nodeName, 'clip'] in self.edges:
+                    self.edges.append([layer, nodeName, 'clip'])
         
         # print 'end test'.center(40, '-')
     
@@ -405,7 +381,8 @@ def find_node(node_coll, attr_name, attr_value):
 
 @QtCore.Slot(str, object)
 def on_nodeMoved(nodeName, nodePos):
-    print('node {0} moved to {1}'.format(nodeName, nodePos))
+    # print('node {0} moved to {1}'.format(nodeName, nodePos))
+    pass
 
 
 class FindNodeWindow(QtWidgets.QDialog):
@@ -424,7 +401,7 @@ class FindNodeWindow(QtWidgets.QDialog):
         if search_text == '':
             return
         
-        for x in self.nodz.scene().nodes:
+        for x in sorted(self.nodz.scene().nodes):
             if fnmatch.fnmatch(x.lower(), '*%s*' % search_text.lower()):
                 self.foundNodeList.addItem(QtWidgets.QListWidgetItem(x))
     
@@ -597,7 +574,6 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 node_preset = 'node_specialize'
             elif info.get("type") == 'reference':
                 node_preset = 'node_reference'
-            
             if not node_label in nds:
                 nodeA = self.nodz.createNode(name=node_label, preset=node_preset, position=pos)
                 if self.usdfile == node:
@@ -607,10 +583,6 @@ class NodeGraphWindow(QtWidgets.QDialog):
                     self.nodz.createAttribute(node=nodeA, name='out', index=0, preset='attr_preset_1',
                                               plug=True, socket=False, dataType=int, socketMaxConnections=-1)
                     
-                    self.nodz.createAttribute(node=nodeA, name='layers', index=-1, preset='attr_preset_1',
-                                              plug=False, socket=True, dataType=int, socketMaxConnections=-1)
-                    self.nodz.createAttribute(node=nodeA, name='clips', index=-1, preset='attr_preset_1',
-                                              plug=False, socket=True, dataType=int, socketMaxConnections=-1)
                     nodeA.userData = info
                     
                     if info['online'] is False:
@@ -619,20 +591,42 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 
                 nds.append(node_label)
         
-        # print x.nodes.keys()
+        # pprint(x.edges)
+        
         # print 'wiring nodes'.center(40, '-')
         # create all the node connections
         for edge in x.edges:
             start = os.path.basename(edge[0])
-            node_type = x.nodes[edge[1]].get("type", "layer")
-            # print 'node_type', node_type
-            port = 'layers'
-            if node_type == 'clip':
-                port = 'clips'
-            elif node_type == ' payload':
-                port = 'payloads'
             end = os.path.basename(edge[1])
-            self.nodz.createConnection(end, 'out', start, port)
+            port_type = edge[2]
+            start_node = self.nodz.scene().nodes[start]
+            end_node = self.nodz.scene().nodes[end]
+            self.nodz.createAttribute(node=start_node, name=port_type, index=-1, preset='attr_preset_1',
+                                      plug=False, socket=True, dataType=int, socketMaxConnections=-1)
+            
+            self.nodz.createConnection(end, 'out', start, port_type)
+        
+        # any nodes that don't have output connections
+        # ie, loose nodes
+        # use the layer traversal connections
+        for node_name in self.nodz.scene().nodes:
+            node = self.nodz.scene().nodes[node_name]
+            if not node.plugs['out'].connections:
+                if node == self.root_node:
+                    # skip the root node - it's never gonna have an out connection
+                    continue
+                
+                node_path = node.userData.get("path")
+                edge_info = [f for f in x.init_edges if f[1] == node_path]
+                if edge_info:
+                    start = os.path.basename(edge_info[0][1])
+                    end = os.path.basename(edge_info[0][0])
+                    end_node = self.nodz.scene().nodes[end]
+                    
+                    self.nodz.createAttribute(node=end_node, name='sublayer', index=-1, preset='attr_preset_1',
+                                              plug=False, socket=True, dataType=int, socketMaxConnections=-1)
+                    
+                    self.nodz.createConnection(start, 'out', end, 'sublayer')
         
         # layout nodes!
         self.nodz.arrangeGraph(self.root_node)
