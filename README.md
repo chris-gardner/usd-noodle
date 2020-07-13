@@ -1,4 +1,4 @@
-# usd-dependency-graph
+# usd-noodle
 Pretty node graph showing dependencies of a USD file
 
 ## Cloning
