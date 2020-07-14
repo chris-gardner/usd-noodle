@@ -5,7 +5,7 @@ import fnmatch
 from functools import partial
 
 from Qt import QtCore, QtWidgets, QtGui
-from pxr import Usd, Sdf, Ar
+from pxr import Usd, Sdf, Ar, UsdUtils
 
 import utils
 from vendor.Nodz import nodz_main
@@ -22,7 +22,7 @@ reload(text_view)
 reload(nodz_main)
 
 logger = logging.getLogger('usd-dependency-graph')
-logger.setLevel(logging.DEBUG)
+logger.setLevel(logging.INFO)
 if not len(logger.handlers):
     ch = logging.StreamHandler()
     ch.setLevel(logging.DEBUG)
@@ -33,265 +33,80 @@ logger.propagate = False
 class DependencyWalker(object):
     def __init__(self, usdfile):
         self.usdfile = usdfile
-        self.stage = None
         
         logger.info('DependencyWalker'.center(40, '-'))
-        logger.info('loading usd file: {}'.format(self.usdfile))
+        logger.info('Loading usd file: {}'.format(self.usdfile))
         self.nodes = {}
         self.edges = []
+        
+        self.visited_nodes = []
     
     
     def start(self):
+        self.visited_nodes = []
         self.nodes = {}
         self.edges = []
         self.init_edges = []
-        self.stage = None
         
-        self.stage = Usd.Stage.Open(self.usdfile)
-        rootLayer = self.stage.GetRootLayer()
+        layer = Sdf.Layer.FindOrOpen(self.usdfile)
+        if not layer:
+            return
+        layer_path = os.path.normcase(layer.realPath).replace('\\', '/')
         
         info = {}
-        info['mute'] = False
-        info['online'] = os.path.isfile(self.usdfile)
-        info['path'] = self.usdfile
+        info['online'] = os.path.isfile(layer_path)
+        info['path'] = layer_path
         info['type'] = 'layer'
-        self.nodes[self.usdfile] = info
+        self.nodes[layer_path] = info
         
-        self.walkStageLayers(rootLayer)
-        self.walkStagePrims(self.usdfile)
-        # raise RuntimeError("poo")
+        self.walkStageLayers(layer_path)
     
     
-    def walkStageLayers(self, layer, level=1):
-        """
-        Recursive function to loop through a layer's external references
-        
-        :param layer: SdfLayer
-        :param level: current recursion depth
-        """
-        
+    def get_flat_child_list(self, path):
+        ret = [path]
+        for key, child in path.nameChildren.items():
+            ret.extend(self.get_flat_child_list(child))
+        ret = list(set(ret))
+        return ret
+    
+    
+    def flatten_ref_list(self, ref_or_payload):
+        ret = []
+        for itemlist in [ref_or_payload.appendedItems, ref_or_payload.explicitItems, ref_or_payload.addedItems,
+                         ref_or_payload.prependedItems, ref_or_payload.orderedItems]:
+            for payload in itemlist:
+                ret.append(payload)
+        return list(set(ret))
+    
+    
+    def walkStageLayers(self, usdfile, level=1):
         id = '-' * (level)
-        layer_path = layer.realPath
-        # print id, 'layer: ', layer_path
-        layer_basepath = os.path.dirname(layer_path)
-        # print id, 'references:'
-        # print 'refs', layer.GetExternalReferences()
-        count = 0
         
-        for ref in layer.GetExternalReferences():
-            if not ref:
-                # sometimes a ref can be a zero length string. whyyyyyyyyy?
-                # seeing this in multiverse esper_room example
-                continue
-            
-            refpath = os.path.normpath(os.path.join(layer_basepath, ref))
-            # print id, refpath
-            # if self.stage.IsLayerMuted(ref):
-            #     print 'muted layer'
-            # print 'anon?', Sdf.Layer.IsAnonymousLayerIdentifier(ref)
-            
-            # if you wanna construct a full path yourself
-            # you can manually load a SdfLayer like this
-            sub_layer = Sdf.Layer.Find(refpath)
-            
-            # or you can use FindRelativeToLayer to do the dirty work
-            # seems to operate according to the composition rules (variants blah blah)
-            # ie, it *may* not return a layer if the stage is set to not load that layer
-            # sub_layer = Sdf.Layer.FindRelativeToLayer(layer, ref)
-            
-            online = True
-            if sub_layer:
-                child_count = self.walkStageLayers(sub_layer, level=level + 1)
-            if not os.path.isfile(refpath):
-                online = False
-                # print "NOT ONLINE", ref
-            
-            if not refpath in self.nodes:
-                count += 1
-                info = {}
-                info['mute'] = self.stage.IsLayerMuted(ref)
-                info['online'] = online
-                info['path'] = refpath
-                info['type'] = 'layer'
-                
-                self.nodes[refpath] = info
-            
-            if not [layer_path, refpath] in self.init_edges:
-                self.init_edges.append([layer_path, refpath])
+        sublayers = []
+        payloads = []
+        references = []
         
-        # print 'SUBLAYERS'
-        # print layer.subLayerPaths
-        for ref in layer.subLayerPaths:
-            if not ref:
-                # going to guard against zero length strings here too
-                continue
-            
-            refpath = os.path.normpath(os.path.join(layer_basepath, ref))
-            
-            # if self.stage.IsLayerMuted(ref):
-            #     print 'muted layer'
-            sub_layer = Sdf.Layer.Find(refpath)
-            online = True
-            if sub_layer:
-                child_count = self.walkStageLayers(sub_layer, level=level + 1)
-            if not os.path.isfile(refpath):
-                online = False
-                # print "NOT ONLINE", ref
-            
-            if not refpath in self.nodes:
-                count += 1
-                info = {}
-                info['mute'] = self.stage.IsLayerMuted(ref)
-                info['online'] = online
-                info['path'] = refpath
-                info['type'] = 'sublayer'
-                
-                self.nodes[refpath] = info
-            
-            if not [layer_path, refpath] in self.init_edges:
-                self.init_edges.append([layer_path, refpath])
+        layer = Sdf.Layer.FindOrOpen(usdfile)
+        if not layer:
+            return
+        layer_path = layer.realPath.replace('\\', '/')
+        # print id, layer.realPath
+        root = layer.pseudoRoot
+        # print id, 'root', root
         
-        return count
-    
-    
-    def walkStagePrims(self, usdfile):
-        # print 'test'.center(40, '-')
-        stage = Usd.Stage.Open(usdfile)
+        # print id, 'children'.center(40, '-')
         
-        for prim in stage.TraverseAll():
-            # print(prim.GetPath())
+        child_list = self.get_flat_child_list(root)
+        
+        for child in child_list:
+            # print id, child
+            clip_info = child.GetInfo("clips")
+            # pprint(clip_info)
             
-            # from the docs:
-            """Return a list of PrimSpecs that provide opinions for this prim (i.e.
-            the prim's metadata fields, including composition metadata).
-             specs are ordered from strongest to weakest opinion."""
-            primStack = prim.GetPrimStack()
-            for spec in primStack:
-                if spec.hasPayloads:
-                    payloadList = spec.payloadList
-                    for itemlist in [payloadList.appendedItems, payloadList.explicitItems,
-                                     payloadList.addedItems,
-                                     payloadList.prependedItems, payloadList.orderedItems]:
-                        if itemlist:
-                            for payload in itemlist:
-                                payload_path = payload.assetPath
-                                
-                                # print payload, payload_path
-                                with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
-                                    resolver = Ar.GetResolver()
-                                    # we resolve the payload path relative to the primSpec layer path (layer.identifier)
-                                    # far more likely to be correct. i hope
-                                    resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, payload_path)
-                                    # print 'payload resolvedpath', resolvedpath
-                                    
-                                    info = {}
-                                    info['online'] = os.path.isfile(resolvedpath)
-                                    info['path'] = resolvedpath
-                                    info['type'] = 'payload'
-                                    
-                                    self.nodes[resolvedpath] = info
-                                    if spec.layer.identifier != resolvedpath:
-                                        if not [spec.layer.identifier, resolvedpath, 'payload'] in self.edges:
-                                            self.edges.append([spec.layer.identifier, resolvedpath, 'payload'])
-                
-                # the docs say there's a HasSpecializes method
-                # no, there is not. at least in this build of houdini 18.0.453
-                # if spec.HasSpecializes:
-                # let's just ignore specialize for the time being
-                """
-                specializesList = spec.specializesList
-                spec_paths = []
-                for itemlist in [specializesList.appendedItems, specializesList.explicitItems,
-                                 specializesList.addedItems,
-                                 specializesList.prependedItems, specializesList.orderedItems]:
-                    if itemlist:
-                        for specialize in itemlist:
-                            specialize_path = specialize.assetPath
-                            with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
-                                resolver = Ar.GetResolver()
-                                resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier, specialize_path)
-                                spec_paths.append(resolvedpath)
-                                ret.append(resolvedpath)
-
-                if spec_paths:
-                    print 'specializesList', spec.specializesList
-
-                """
-                
-                # references operate the same to payloads
-                if spec.hasReferences:
-                    reflist = spec.referenceList
-                    for itemlist in [reflist.appendedItems, reflist.explicitItems,
-                                     reflist.addedItems,
-                                     reflist.prependedItems, reflist.orderedItems]:
-                        if itemlist:
-                            for reference in itemlist:
-                                reference_path = reference.assetPath
-                                if reference_path:
-                                    # print reference_path
-                                    with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
-                                        resolver = Ar.GetResolver()
-                                        # we resolve the payload path relative to the primSpec layer path (layer.identifier)
-                                        # far more likely to be correct. i hope
-                                        resolvedpath = resolver.AnchorRelativePath(spec.layer.identifier,
-                                                                                   reference_path)
-                                        
-                                        info = {}
-                                        info['online'] = os.path.isfile(resolvedpath)
-                                        info['path'] = resolvedpath
-                                        info['type'] = 'reference'
-                                        
-                                        self.nodes[resolvedpath] = info
-                                        
-                                        if spec.layer.identifier != resolvedpath:
-                                            if not [spec.layer.identifier, resolvedpath, 'reference'] in self.edges:
-                                                self.edges.append([spec.layer.identifier, resolvedpath, 'reference'])
-                
-                if spec.variantSets:
-                    for varset in spec.variantSets:
-                        thisvarset = prim.GetVariantSet(varset.name)
-                        current_variant_name = thisvarset.GetVariantSelection()
-                        current_variant = varset.variants[current_variant_name]
-                        for variant_name in varset.variants.keys():
-                            variant = varset.variants[variant_name]
-                            
-                            # todo: put variant info onto layer
-                            
-                            # for key in variant.GetMetaDataInfoKeys():
-                            #     print key, variant.GetInfo(key)
-                            
-                            # variants that are linked to payloads
-                            # variants can have other mechanisms, but sometimes they're a payload
-                            payloads = variant.GetInfo('payload')
-                            for itemlist in [payloads.appendedItems, payloads.explicitItems, payloads.addedItems,
-                                             payloads.prependedItems, payloads.orderedItems]:
-                                for payload in itemlist:
-                                    pathToResolve = payload.assetPath
-                                    anchorPath = variant.layer.identifier
-                                    with Ar.ResolverContextBinder(stage.GetPathResolverContext()):
-                                        resolver = Ar.GetResolver()
-                                        resolvedpath = resolver.AnchorRelativePath(anchorPath, pathToResolve)
-                                        if not [anchorPath, resolvedpath, 'payload'] in self.edges:
-                                            self.edges.append([anchorPath, resolvedpath, 'payload'])
-                
-                # def, over or class
-                # print 'GetSpecifier', spec.specifier
-                # component,
-                # print 'GetKind', spec.kind
-                # print '--'
-            
-            # clips - this seems to be the way to do things
-            # clips are not going to be picked up by the stage layers inspection stuff
-            # apparently they're expensive. whatever.
-            # no prim stack shennanigans for us
-            # gotta get a clip on each prim and then test it for paths?
-            clips = Usd.ClipsAPI(prim)
-            if clips.GetClipAssetPaths():
-                # print 'CLIPS'.center(30, '-')
-                # dict of clip info. full of everything
-                # key is the clip *name*
-                clip_dict = clips.GetClips()
-                # print clip_dict
+            for clip_set_name in clip_info:
+                clip_set = clip_info[clip_set_name]
+                # print clip_set_name, clip_set.get("assetPaths"), clip_set.get("manifestAssetPath"), clip_set.get(
+                #     "primPath")
                 
                 """
                 @todo: subframe handling
@@ -300,9 +115,10 @@ class DependencyWalker(object):
                 
                 @todo: non-1 increments
                 """
+                clip_asset_paths = clip_set.get("assetPaths")
                 # don't use resolved path in case either the first or last file is missing from disk
-                firstFile = str(clips.GetClipAssetPaths()[0].path)
-                lastFile = str(clips.GetClipAssetPaths()[-1].path)
+                firstFile = str(clip_asset_paths[0].path)
+                lastFile = str(clip_asset_paths[-1].path)
                 firstFileNum = digitSearch.findall(firstFile)[-1]
                 lastFileNum = digitSearch.findall(lastFile)[-1]
                 digitRange = str(firstFileNum + '-' + lastFileNum)
@@ -316,7 +132,7 @@ class DependencyWalker(object):
                 nodeName += firstFileParts[-1]
                 
                 allFilesFound = True
-                for path in clips.GetClipAssetPaths():
+                for path in clip_asset_paths:
                     if (path.resolvedPath == ''):
                         allFilesFound = False
                         break
@@ -324,34 +140,140 @@ class DependencyWalker(object):
                 # TODO : make more efficient - looping over everything currently
                 # TODO: validate presence of all files in the clip seq. bg thread?
                 
-                # GetClipSets seems to be crashing this houdini build - clips.GetClipSets()
-                clip_sets = clips.GetClips().keys()
+                manifestPath = clip_set.get("manifestAssetPath")
+                # print manifestPath, type(manifestPath)
+                refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, clip_asset_paths[0].path)
+                clipmanifest_path = Sdf.ComputeAssetPathRelativeToLayer(layer, manifestPath.path)
+                # print id, Sdf.ComputeAssetPathRelativeToLayer(layer, manifestPath.path)
                 
-                # print 'GetClipManifestAssetPath', clips.GetClipManifestAssetPath().resolvedPath
-                # this is a good one - resolved asset paths too
-                for clipSet in clip_sets:
-                    for path in clips.GetClipAssetPaths(clipSet):
-                        # print path, type(path)
-                        # print path.resolvedPath
-                        pass
+                info = {}
+                info['online'] = True
+                info['path'] = refpath
+                info['type'] = 'clip'
                 
-                # layer that hosts list clip
-                # but this is the MANIFEST path
-                # not really correct. it'll have to do for now.
-                layer = clips.GetClipManifestAssetPath().resolvedPath
+                self.nodes[nodeName] = info
                 
-                if not nodeName in self.nodes:
-                    info = {}
-                    info['online'] = allFilesFound
-                    info['path'] = nodeName
-                    info['type'] = 'clip'
+                if not [layer_path, nodeName, 'clip'] in self.edges:
+                    self.edges.append([layer_path, nodeName, 'clip'])
+            
+            if child.variantSets:
+                for varset in child.variantSets:
+                    # print varset.name
+                    for variant_name in varset.variants.keys():
+                        variant = varset.variants[variant_name]
+                        payloadList = variant.primSpec.payloadList
+                        
+                        # so variants can host payloads and references
+                        # we get to these through the variants primspec
+                        # and then add them to our list of paths to inspect
+                        for primspec in self.get_flat_child_list(variant.primSpec):
+                            payloadList = self.flatten_ref_list(primspec.payloadList)
+                            for payload in payloadList:
+                                pathToResolve = payload.assetPath
+                                if pathToResolve:
+                                    refpath = os.path.normpath(
+                                        os.path.join(os.path.dirname(layer.realPath), pathToResolve)).replace('\\', '/')
+                                    payloads.append(refpath)
+                                    
+                                    info = {}
+                                    info['online'] = True
+                                    info['path'] = refpath
+                                    info['type'] = 'payload'
+                                    
+                                    self.nodes[refpath] = info
+                                    
+                                    if not [layer_path, refpath, 'payload'] in self.edges:
+                                        self.edges.append([layer_path, refpath, 'payload'])
+                            
+                            referenceList = self.flatten_ref_list(child.referenceList)
+                            for reference in referenceList:
+                                pathToResolve = reference.assetPath
+                                if pathToResolve:
+                                    refpath = os.path.normpath(
+                                        os.path.join(os.path.dirname(layer.realPath), pathToResolve)).replace('\\', '/')
+                                    references.append(refpath)
+                                    
+                                    info = {}
+                                    info['online'] = True
+                                    info['path'] = refpath
+                                    info['type'] = 'reference'
+                                    
+                                    self.nodes[refpath] = info
+                                    
+                                    if not [layer_path, refpath, 'reference'] in self.edges:
+                                        self.edges.append([layer_path, refpath, 'reference'])
+            
+            payloadList = self.flatten_ref_list(child.payloadList)
+            for payload in payloadList:
+                pathToResolve = payload.assetPath
+                if pathToResolve:
+                    refpath = os.path.normpath(
+                        os.path.join(os.path.dirname(layer.realPath), pathToResolve)).replace('\\', '/')
+                    payloads.append(refpath)
                     
-                    self.nodes[nodeName] = info
-                
-                if not [layer, nodeName, 'clip'] in self.edges:
-                    self.edges.append([layer, nodeName, 'clip'])
+                    info = {}
+                    info['online'] = True
+                    info['path'] = refpath
+                    info['type'] = 'payload'
+                    
+                    self.nodes[refpath] = info
+                    
+                    if not [layer_path, refpath, 'payload'] in self.edges:
+                        self.edges.append([layer_path, refpath, 'payload'])
+            
+            referenceList = self.flatten_ref_list(child.referenceList)
+            for reference in referenceList:
+                pathToResolve = reference.assetPath
+                if pathToResolve:
+                    refpath = os.path.normpath(
+                        os.path.join(os.path.dirname(layer.realPath), pathToResolve)).replace('\\', '/')
+                    references.append(refpath)
+                    
+                    info = {}
+                    info['online'] = True
+                    info['path'] = refpath
+                    info['type'] = 'reference'
+                    
+                    self.nodes[refpath] = info
+                    
+                    if not [layer_path, refpath, 'reference'] in self.edges:
+                        self.edges.append([layer_path, refpath, 'reference'])
         
-        # print 'end test'.center(40, '-')
+        for rel_sublayer in layer.subLayerPaths:
+            refpath = os.path.normpath(os.path.join(os.path.dirname(layer.realPath), rel_sublayer)).replace('\\', '/')
+            sublayers.append(refpath)
+            
+            info = {}
+            info['online'] = True
+            info['path'] = refpath
+            info['type'] = 'sublayer'
+            
+            self.nodes[refpath] = info
+            
+            if not [layer_path, refpath, 'sublayer'] in self.edges:
+                self.edges.append([layer_path, refpath, 'sublayer'])
+        
+        sublayers = list(set(sublayers))
+        references = list(set(references))
+        payloads = list(set(payloads))
+        
+        if sublayers:
+            logger.debug((id, 'sublayerPaths'.center(40, '-')))
+            logger.debug((id, sublayers))
+        for sublayer in sublayers:
+            self.walkStageLayers(sublayer, level=level + 1)
+        
+        if references:
+            logger.debug((id, 'references'.center(40, '-')))
+            logger.debug((id, references))
+        for reference in references:
+            self.walkStageLayers(reference, level=level + 1)
+        
+        if payloads:
+            logger.debug((id, 'payloads'.center(40, '-')))
+            logger.debug((id, payloads))
+        for payload in payloads:
+            self.walkStageLayers(payload, level=level + 1)
     
     
     def layerprops(self, layer):
@@ -512,7 +434,23 @@ class NodeGraphWindow(QtWidgets.QDialog):
     def node_path(self, node_name):
         node = self.get_node_from_name(node_name)
         userdata = node.userData
-        print userdata.get('path')
+    
+    
+    def node_upstream(self, node_name):
+        start_node = self.get_node_from_name(node_name)
+        connected_nodes = [start_node]
+        socket_names = start_node.sockets.keys()
+        for socket in socket_names:
+            for i, conn in enumerate(start_node.sockets[socket].connections):
+                node_coll = [x for x in start_node.scene().nodes.values() if x.name == conn.plugNode]
+                connected_nodes.append(node_coll[0])
+        
+        for node_name in self.nodz.scene().nodes:
+            node = self.nodz.scene().nodes[node_name]
+            if node in connected_nodes:
+                node.setSelected(True)
+            else:
+                node.setSelected(False)
     
     
     def view_usdfile(self, node_name):
@@ -528,8 +466,9 @@ class NodeGraphWindow(QtWidgets.QDialog):
     
     def node_context_menu(self, event, node):
         menu = QtWidgets.QMenu()
-        menu.addAction("print path", partial(self.node_path, node))
+        menu.addAction("Print Node Path", partial(self.node_path, node))
         menu.addAction("View USD file...", partial(self.view_usdfile, node))
+        menu.addAction("Select upstream", partial(self.node_upstream, node))
         
         menu.exec_(event.globalPos())
     
@@ -574,8 +513,9 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 node_preset = 'node_specialize'
             elif info.get("type") == 'reference':
                 node_preset = 'node_reference'
-            if not node_label in nds:
-                nodeA = self.nodz.createNode(name=node_label, preset=node_preset, position=pos)
+            
+            if not node in nds:
+                nodeA = self.nodz.createNode(name=node, label=node_label, preset=node_preset, position=pos)
                 if self.usdfile == node:
                     self.root_node = nodeA
                 
@@ -589,48 +529,31 @@ class NodeGraphWindow(QtWidgets.QDialog):
                         self.nodz.createAttribute(node=nodeA, name='OFFLINE', index=0, preset='attr_preset_2',
                                                   plug=False, socket=False)
                 
-                nds.append(node_label)
+                nds.append(node)
         
         # pprint(x.edges)
         
         # print 'wiring nodes'.center(40, '-')
         # create all the node connections
         for edge in x.edges:
-            start = os.path.basename(edge[0])
-            end = os.path.basename(edge[1])
-            port_type = edge[2]
-            start_node = self.nodz.scene().nodes[start]
-            end_node = self.nodz.scene().nodes[end]
-            self.nodz.createAttribute(node=start_node, name=port_type, index=-1, preset='attr_preset_1',
-                                      plug=False, socket=True, dataType=int, socketMaxConnections=-1)
             
-            self.nodz.createConnection(end, 'out', start, port_type)
-        
-        # any nodes that don't have output connections
-        # ie, loose nodes
-        # use the layer traversal connections
-        for node_name in self.nodz.scene().nodes:
-            node = self.nodz.scene().nodes[node_name]
-            if not node.plugs['out'].connections:
-                if node == self.root_node:
-                    # skip the root node - it's never gonna have an out connection
-                    continue
+            start = edge[0]
+            end = edge[1]
+            port_type = edge[2]
+            try:
+                start_node = self.nodz.scene().nodes[start]
+                self.nodz.createAttribute(node=start_node, name=port_type, index=-1, preset='attr_preset_1',
+                                          plug=False, socket=True, dataType=int, socketMaxConnections=-1)
                 
-                node_path = node.userData.get("path")
-                edge_info = [f for f in x.init_edges if f[1] == node_path]
-                if edge_info:
-                    start = os.path.basename(edge_info[0][1])
-                    end = os.path.basename(edge_info[0][0])
-                    end_node = self.nodz.scene().nodes[end]
-                    
-                    self.nodz.createAttribute(node=end_node, name='sublayer', index=-1, preset='attr_preset_1',
-                                              plug=False, socket=True, dataType=int, socketMaxConnections=-1)
-                    
-                    self.nodz.createConnection(start, 'out', end, 'sublayer')
+                self.nodz.createConnection(end, 'out', start, port_type)
+            except:
+                print 'cannot find start node', start
+        node_list = self.nodz.scene().nodes
+        self.root_node = node_list[node_list.keys()[0]]
         
         # layout nodes!
-        self.nodz.arrangeGraph(self.root_node)
-        # self.nodz.autoLayoutGraph()
+        # self.nodz.arrangeGraph(self.root_node)
+        self.nodz.autoLayoutGraph()
         self.nodz._focus()
     
     
