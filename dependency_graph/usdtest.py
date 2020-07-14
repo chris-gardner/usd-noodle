@@ -1,6 +1,7 @@
-from pxr import Usd, Sdf, Ar
+from pxr import Usd, Sdf, Ar, UsdUtils
 
 import os.path
+from pprint import pprint
 
 
 def test(usdfile):
@@ -412,7 +413,7 @@ def prim_traverse(usdfile):
                                     resolver = Ar.GetResolver()
                                     pathToResolve = resolver.AnchorRelativePath(anchorPath, pathToResolve)
                                     print 'pathToResolve', pathToResolve
-
+                    
                     # print type(current_variant)
                     # print dir(current_variant)
                     # print 'path', current_variant.path
@@ -423,7 +424,7 @@ def prim_traverse(usdfile):
                     #
                     for key in current_variant.GetMetaDataInfoKeys():
                         print key, current_variant.GetInfo(key)
-
+                    
                     # THIS IS WAAAY WRONG
                     # it's just giving the layer path
                     current_variant_path = current_variant.layer.realPath
@@ -533,14 +534,14 @@ def pcp(usdfile):
     print 'pcp'.center(40, '-')
     stage = Usd.Stage.Open(usdfile)
     count = 1
-
+    
     for prim in stage.Traverse():
         prim_idx = prim.GetPrimIndex()
         # print dir(prim_idx)
         # print prim_idx.DumpToString()
         print prim_idx.hasAnyPayloads
         root_node = prim_idx.rootNode
-        #print dir(root_node)
+        # print dir(root_node)
         print 'arcType', root_node.arcType
         print 'path', root_node.path
         print 'layerStack', root_node.layerStack
@@ -550,11 +551,134 @@ def pcp(usdfile):
         print dir(root_node.site.path)
         if 'Dressoire' in str(root_node.site.path):
             raise RuntimeError("poo")
-
+        
         if prim_idx.ComposeAuthoredVariantSelections():
             print prim_idx.ComposeAuthoredVariantSelections()
         if prim_idx.ComputePrimPropertyNames():
             print prim_idx.ComputePrimPropertyNames()
     print 'pcp'.center(40, '-')
 
+
+def dep(usdfile, level=1):
+    id = '-' * (level)
     
+    # print 'UsdUtilsExtractExternalReferences'.center(40, '-')
+    print id, usdfile
+    sublayers, references, payloads = UsdUtils.ExtractExternalReferences(usdfile)
+    
+    if sublayers:
+        print id, 'SUBLAYERS'
+        for sublayer in sublayers:
+            # print id, sublayer
+            refpath = os.path.normpath(os.path.join(os.path.dirname(usdfile), sublayer))
+            dep(refpath, level=level + 1)
+    
+    if references:
+        print id, 'REFERENCES'
+        for reference in references:
+            # print id, reference
+            refpath = os.path.normpath(os.path.join(os.path.dirname(usdfile), reference))
+            dep(refpath, level=level + 1)
+    
+    if payloads:
+        print id, 'PAYLOADS'
+        for payload in payloads:
+            # print id, payload
+            refpath = os.path.normpath(os.path.join(os.path.dirname(usdfile), payload))
+            dep(refpath, level=level + 1)
+
+
+def get_flat_child_list(path):
+    ret = [path]
+    for key, child in path.nameChildren.items():
+        ret.extend(get_flat_child_list(child))
+    ret = list(set(ret))
+    return ret
+
+
+def dep_2(usdfile, level=1):
+    id = '-' * (level)
+    
+    sublayers = []
+    payloads = []
+    references = []
+    
+    layer = Sdf.Layer.FindOrOpen(usdfile)
+    if not layer:
+        return
+    print id, layer.realPath
+    root = layer.pseudoRoot
+    print id, 'root', root
+    
+    # print id, 'children'.center(40, '-')
+    
+    child_list = get_flat_child_list(root)
+    
+    for child in child_list:
+        # print id, child
+        clip_info = child.GetInfo("clips")
+        # pprint(clip_info)
+        
+        for clip_set_name in clip_info:
+            clip_set = clip_info[clip_set_name]
+            pprint(clip_set)
+            print clip_set_name, clip_set.get("assetPaths"), clip_set.get("manifestAssetPath"), clip_set.get("primPath")
+            for assetPath in clip_set.get("assetPaths"):
+                print id, Sdf.ComputeAssetPathRelativeToLayer(layer, assetPath.path)
+            manifestPath = clip_set.get("manifestAssetPath")
+            print manifestPath, type(manifestPath)
+            print id, Sdf.ComputeAssetPathRelativeToLayer(layer, manifestPath.path)
+        
+        if child.variantSets:
+            print 'variants'.center(40, '-')
+            for varset in child.variantSets:
+                print varset.name
+                for variant_name in varset.variants.keys():
+                    variant = varset.variants[variant_name]
+                    print variant_name
+                    payloadList = variant.primSpec.payloadList
+                    print payloadList
+                    for x in get_flat_child_list(variant.primSpec):
+                        print x.payloadList
+                        print x.referenceList
+        
+        payloadList = child.payloadList
+        for itemlist in [payloadList.appendedItems, payloadList.explicitItems, payloadList.addedItems,
+                         payloadList.prependedItems, payloadList.orderedItems]:
+            for payload in itemlist:
+                pathToResolve = payload.assetPath
+                if pathToResolve:
+                    refpath = os.path.normpath(os.path.join(os.path.dirname(layer.realPath), pathToResolve)).replace(
+                        '\\', '/')
+                    # print id, 'payload:', refpath
+                    payloads.append(refpath)
+        
+        referenceList = child.referenceList
+        for itemlist in [referenceList.appendedItems, referenceList.explicitItems, referenceList.addedItems,
+                         referenceList.prependedItems, referenceList.orderedItems]:
+            for reference in itemlist:
+                pathToResolve = reference.assetPath
+                if pathToResolve:
+                    refpath = os.path.normpath(os.path.join(os.path.dirname(layer.realPath), pathToResolve)).replace(
+                        '\\', '/')
+                    # print id, 'payload:', refpath
+                    references.append(refpath)
+    
+    for rel_sublayer in layer.subLayerPaths:
+        refpath = os.path.normpath(os.path.join(os.path.dirname(layer.realPath), rel_sublayer)).replace('\\', '/')
+        sublayers.append(refpath)
+        # print id, refpath
+        dep_2(refpath, level=level + 1)
+        # sub_layer = Sdf.Layer.FindOrOpen(refpath)
+        # print sub_layer
+        #
+    sublayers = list(set(sublayers))
+    references = list(set(references))
+    payloads = list(set(payloads))
+    
+    print id, 'sublayerPaths'.center(40, '-')
+    print id, sublayers
+    print id, 'references'.center(40, '-')
+    print id, references
+    print id, 'payloads'.center(40, '-')
+    print id, payloads
