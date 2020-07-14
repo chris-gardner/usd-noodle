@@ -559,7 +559,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
     
     def layout_nodes(self):
         # layout nodes!
-        self.nodz.arrangeGraph(self.root_node)
+        # self.nodz.arrangeGraph(self.root_node)
+        self.nodz.autoLayoutGraph()
         
         self.nodz._focus(all=True)
     
