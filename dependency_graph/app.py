@@ -3,6 +3,8 @@ import os.path
 import random
 import fnmatch
 from functools import partial
+import subprocess
+import threading
 
 from Qt import QtCore, QtWidgets, QtGui
 from pxr import Usd, Sdf, Ar, UsdUtils
@@ -28,6 +30,11 @@ if not len(logger.handlers):
     ch.setLevel(logging.DEBUG)
     logger.addHandler(ch)
 logger.propagate = False
+
+
+def launch_usdview(usdfile):
+    print 'launching usdview', usdfile
+    subprocess.call(['usdview', usdfile], shell=True)
 
 
 class DependencyWalker(object):
@@ -56,7 +63,6 @@ class DependencyWalker(object):
         # to get around upper/lowercase drive letters
         # and junk like that
         layer_path = Sdf.ComputeAssetPathRelativeToLayer(layer, os.path.basename(self.usdfile))
-
         
         self.usdfile = layer_path
         
@@ -436,16 +442,24 @@ class NodeGraphWindow(QtWidgets.QDialog):
     def node_path(self, node_name):
         node = self.get_node_from_name(node_name)
         userdata = node.userData
+        path = userdata.get('path')
+        print path
     
     
-    def node_upstream(self, node_name):
-        start_node = self.get_node_from_name(node_name)
-        connected_nodes = [start_node]
+    def _get_upstream_nodes(self, start_node):
+        ret = [start_node]
         socket_names = start_node.sockets.keys()
         for socket in socket_names:
             for i, conn in enumerate(start_node.sockets[socket].connections):
                 node_coll = [x for x in start_node.scene().nodes.values() if x.name == conn.plugNode]
-                connected_nodes.append(node_coll[0])
+                ret.extend(self._get_upstream_nodes(node_coll[0]))
+        
+        return ret
+    
+    
+    def node_upstream(self, node_name):
+        start_node = self.get_node_from_name(node_name)
+        connected_nodes = self._get_upstream_nodes(start_node)
         
         for node_name in self.nodz.scene().nodes:
             node = self.nodz.scene().nodes[node_name]
@@ -459,17 +473,28 @@ class NodeGraphWindow(QtWidgets.QDialog):
         node = self.get_node_from_name(node_name)
         userdata = node.userData
         path = userdata.get('path')
-        if path.endswith(".usda"):
-            win = text_view.TextViewer(path, parent=self)
-            win.show()
-        else:
-            print 'can only view usd ascii files'
+        layer = Sdf.Layer.FindOrOpen(path)
+        
+        win = text_view.TextViewer(input_text=layer.ExportToString(), parent=self)
+        win.show()
+    
+    
+    def view_usdview(self, node_name):
+        node = self.get_node_from_name(node_name)
+        userdata = node.userData
+        path = userdata.get('path')
+        worker = threading.Thread(target=launch_usdview, args=[path])
+        worker.start()
+        
+        # subprocess.call(['usdview', path], shell=True)
+        # os.system('usdview {}'.format(path))
     
     
     def node_context_menu(self, event, node):
         menu = QtWidgets.QMenu()
         menu.addAction("Print Node Path", partial(self.node_path, node))
-        menu.addAction("View USD file...", partial(self.view_usdfile, node))
+        menu.addAction("Inspect layer...", partial(self.view_usdfile, node))
+        menu.addAction("UsdView...", partial(self.view_usdview, node))
         menu.addAction("Select upstream", partial(self.node_upstream, node))
         
         menu.exec_(event.globalPos())
@@ -556,8 +581,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 print 'cannot find start node', start
         
         # layout nodes!
-        self.nodz.arrangeGraph(self.root_node)
-        # self.nodz.autoLayoutGraph()
+        # self.nodz.arrangeGraph(self.root_node)
+        self.nodz.autoLayoutGraph()
         self.nodz._focus()
     
     

@@ -5,16 +5,20 @@ from Qt import QtWidgets, QtCore, QtWidgets, QtGui
 
 
 class TextViewer(QtWidgets.QDialog):
-    def __init__(self, usdfile, parent=None):
+    def __init__(self, usdfile=None, input_text=None, parent=None):
         super(TextViewer, self).__init__(parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         
         self.settings = QtCore.QSettings("chrisg", "usd-dependency-graph-textview")
         
-        self.usdfile = usdfile
-        print 'usdfile', self.usdfile
-        
-        self.data = ''
+        self.usdfile = None
+        if usdfile:
+            self.usdfile = usdfile
+            print 'usdfile', self.usdfile
+            
+        self.data = None
+        if input_text:
+            self.data = input_text
         
         self.verticalLayout = QtWidgets.QVBoxLayout()
         self.setLayout(self.verticalLayout)
@@ -60,10 +64,11 @@ class TextViewer(QtWidgets.QDialog):
     
     
     def loadData(self):
-        fp = open(self.usdfile, 'r')
-        self.data = fp.read()
-        fp.close()
-        
+        if self.usdfile:
+            fp = open(self.usdfile, 'r')
+            self.data = fp.read()
+            fp.close()
+            
         self.editor.setPlainText(self.data)
         # make sure we reset the dirty state after setting the editor contents
         self.dirty = False
