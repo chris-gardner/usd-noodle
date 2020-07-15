@@ -51,7 +51,14 @@ class DependencyWalker(object):
         layer = Sdf.Layer.FindOrOpen(self.usdfile)
         if not layer:
             return
-        layer_path = os.path.normcase(layer.realPath).replace('\\', '/')
+        
+        # scrub the initial file path
+        # to get around upper/lowercase drive letters
+        # and junk like that
+        layer_path = Sdf.ComputeAssetPathRelativeToLayer(layer, os.path.basename(self.usdfile))
+
+        
+        self.usdfile = layer_path
         
         info = {}
         info['online'] = os.path.isfile(layer_path)
@@ -79,17 +86,16 @@ class DependencyWalker(object):
         return list(set(ret))
     
     
-    def walkStageLayers(self, usdfile, level=1):
+    def walkStageLayers(self, layer_path, level=1):
         id = '-' * (level)
         
         sublayers = []
         payloads = []
         references = []
         
-        layer = Sdf.Layer.FindOrOpen(usdfile)
+        layer = Sdf.Layer.FindOrOpen(layer_path)
         if not layer:
             return
-        layer_path = layer.realPath.replace('\\', '/')
         # print id, layer.realPath
         root = layer.pseudoRoot
         # print id, 'root', root
@@ -171,8 +177,7 @@ class DependencyWalker(object):
                             for payload in payloadList:
                                 pathToResolve = payload.assetPath
                                 if pathToResolve:
-                                    refpath = os.path.normpath(
-                                        os.path.join(os.path.dirname(layer.realPath), pathToResolve)).replace('\\', '/')
+                                    refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, pathToResolve)
                                     payloads.append(refpath)
                                     
                                     info = {}
@@ -189,8 +194,7 @@ class DependencyWalker(object):
                             for reference in referenceList:
                                 pathToResolve = reference.assetPath
                                 if pathToResolve:
-                                    refpath = os.path.normpath(
-                                        os.path.join(os.path.dirname(layer.realPath), pathToResolve)).replace('\\', '/')
+                                    refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, pathToResolve)
                                     references.append(refpath)
                                     
                                     info = {}
@@ -207,8 +211,7 @@ class DependencyWalker(object):
             for payload in payloadList:
                 pathToResolve = payload.assetPath
                 if pathToResolve:
-                    refpath = os.path.normpath(
-                        os.path.join(os.path.dirname(layer.realPath), pathToResolve)).replace('\\', '/')
+                    refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, pathToResolve)
                     payloads.append(refpath)
                     
                     info = {}
@@ -225,8 +228,7 @@ class DependencyWalker(object):
             for reference in referenceList:
                 pathToResolve = reference.assetPath
                 if pathToResolve:
-                    refpath = os.path.normpath(
-                        os.path.join(os.path.dirname(layer.realPath), pathToResolve)).replace('\\', '/')
+                    refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, pathToResolve)
                     references.append(refpath)
                     
                     info = {}
@@ -240,7 +242,7 @@ class DependencyWalker(object):
                         self.edges.append([layer_path, refpath, 'reference'])
         
         for rel_sublayer in layer.subLayerPaths:
-            refpath = os.path.normpath(os.path.join(os.path.dirname(layer.realPath), rel_sublayer)).replace('\\', '/')
+            refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, rel_sublayer)
             sublayers.append(refpath)
             
             info = {}
@@ -485,6 +487,10 @@ class NodeGraphWindow(QtWidgets.QDialog):
         x = DependencyWalker(self.usdfile)
         x.start()
         
+        # get back the scrubbed initial file path
+        # which will let us find the start node properly
+        self.usdfile = x.usdfile
+        
         nodz_scene = self.nodz.scene()
         rect = nodz_scene.sceneRect()
         center = [rect.center().x(), rect.center().y()]
@@ -548,12 +554,10 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 self.nodz.createConnection(end, 'out', start, port_type)
             except:
                 print 'cannot find start node', start
-        node_list = self.nodz.scene().nodes
-        self.root_node = node_list[node_list.keys()[0]]
         
         # layout nodes!
-        # self.nodz.arrangeGraph(self.root_node)
-        self.nodz.autoLayoutGraph()
+        self.nodz.arrangeGraph(self.root_node)
+        # self.nodz.autoLayoutGraph()
         self.nodz._focus()
     
     
