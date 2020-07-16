@@ -40,6 +40,7 @@ def launch_usdview(usdfile):
 class DependencyWalker(object):
     def __init__(self, usdfile):
         self.usdfile = usdfile
+        self.walk_attributes = True
         
         logger.info('DependencyWalker'.center(40, '-'))
         logger.info('Loading usd file: {}'.format(self.usdfile))
@@ -114,6 +115,23 @@ class DependencyWalker(object):
             # print id, child
             clip_info = child.GetInfo("clips")
             # pprint(clip_info)
+            
+            if self.walk_attributes:
+                attributes = child.attributes
+                for attr in attributes:
+                    if attr.typeName == 'asset':
+                        value = attr.default
+                        resolved_path = Sdf.ComputeAssetPathRelativeToLayer(layer, value.path)
+                        # print resolved_path, os.path.isfile(resolved_path)
+                        info = {}
+                        info['online'] = os.path.isfile(resolved_path)
+                        info['path'] = resolved_path
+                        info['type'] = 'tex'
+                        
+                        self.nodes[resolved_path] = info
+                        
+                        if not [layer_path, resolved_path, 'tex'] in self.edges:
+                            self.edges.append([layer_path, resolved_path, 'tex'])
             
             for clip_set_name in clip_info:
                 clip_set = clip_info[clip_set_name]
