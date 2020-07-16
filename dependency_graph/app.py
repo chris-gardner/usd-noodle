@@ -119,19 +119,22 @@ class DependencyWalker(object):
             if self.walk_attributes:
                 attributes = child.attributes
                 for attr in attributes:
+                    # we are looking for "asset" type attributes
+                    # references to external things
                     if attr.typeName == 'asset':
                         value = attr.default
-                        resolved_path = Sdf.ComputeAssetPathRelativeToLayer(layer, value.path)
-                        # print resolved_path, os.path.isfile(resolved_path)
-                        info = {}
-                        info['online'] = os.path.isfile(resolved_path)
-                        info['path'] = resolved_path
-                        info['type'] = 'tex'
-                        
-                        self.nodes[resolved_path] = info
-                        
-                        if not [layer_path, resolved_path, 'tex'] in self.edges:
-                            self.edges.append([layer_path, resolved_path, 'tex'])
+                        # sometimes you get empty paths
+                        if value.path:
+                            resolved_path = Sdf.ComputeAssetPathRelativeToLayer(layer, value.path)
+                            info = {}
+                            info['online'] = os.path.isfile(resolved_path)
+                            info['path'] = resolved_path
+                            info['type'] = 'tex'
+                            
+                            self.nodes[resolved_path] = info
+                            
+                            if not [layer_path, resolved_path, 'tex'] in self.edges:
+                                self.edges.append([layer_path, resolved_path, 'tex'])
             
             for clip_set_name in clip_info:
                 clip_set = clip_info[clip_set_name]
@@ -420,6 +423,9 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.reloadBtn.clicked.connect(self.load_file)
         self.toolbar_lay.addWidget(self.reloadBtn)
         
+        self.loadTextChk = QtWidgets.QCheckBox("Load Textures")
+        self.toolbar_lay.addWidget(self.loadTextChk)
+        
         self.findBtn = QtWidgets.QPushButton("Find...")
         self.findBtn.setShortcut('Ctrl+f')
         self.findBtn.clicked.connect(self.findWindow)
@@ -528,6 +534,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.setWindowTitle(self.usdfile)
         
         x = DependencyWalker(self.usdfile)
+        x.walk_attributes = self.loadTextChk.isChecked()
         x.start()
         
         # get back the scrubbed initial file path
