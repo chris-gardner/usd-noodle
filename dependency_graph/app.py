@@ -600,21 +600,23 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 start_node = self.nodz.scene().nodes[start]
                 self.nodz.createAttribute(node=start_node, name=port_type, index=-1, preset='attr_preset_1',
                                           plug=False, socket=True, dataType=int, socketMaxConnections=-1)
-                
+                # sort the ports alphabetically
+                start_node.attrs = sorted(start_node.attrs)
+
                 self.nodz.createConnection(end, 'out', start, port_type)
             except:
                 print 'cannot find start node', start
         
         # layout nodes!
-        # self.nodz.arrangeGraph(self.root_node)
-        self.nodz.autoLayoutGraph()
+        self.nodz.arrangeGraph(self.root_node)
+        # self.nodz.autoLayoutGraph()
         self.nodz._focus()
     
     
     def layout_nodes(self):
         # layout nodes!
-        # self.nodz.arrangeGraph(self.root_node)
-        self.nodz.autoLayoutGraph()
+        self.nodz.arrangeGraph(self.root_node)
+        # self.nodz.autoLayoutGraph()
         
         self.nodz._focus(all=True)
     
