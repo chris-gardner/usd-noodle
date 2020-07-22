@@ -446,6 +446,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
         # self.nodz.editEnabled = False
         lay.addWidget(self.nodz)
         self.nodz.initialize()
+        self.nodz.fitInView(-500, -500, 500, 500)
+        
         self.nodz.signal_NodeMoved.connect(on_nodeMoved)
         self.nodz.signal_NodeContextMenuEvent.connect(self.node_context_menu)
     
@@ -543,7 +545,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         nodz_scene = self.nodz.scene()
         rect = nodz_scene.sceneRect()
-        center = [rect.center().x(), rect.center().y()]
+        center = [0, 0]
         
         # pprint(x.nodes)
         nds = []
@@ -553,8 +555,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
             # print node
             rnd = random.seed(i)
             
-            pos = QtCore.QPointF((random.random() - 0.5) * 1000 + center[0],
-                                 (random.random() - 0.5) * 1000 + center[1])
+            pos = QtCore.QPointF(0, 0)
             node_label = os.path.basename(node)
             
             # node colouring / etc based on the node type
@@ -602,7 +603,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                                           plug=False, socket=True, dataType=int, socketMaxConnections=-1)
                 # sort the ports alphabetically
                 start_node.attrs = sorted(start_node.attrs)
-
+                
                 self.nodz.createConnection(end, 'out', start, port_type)
             except:
                 print 'cannot find start node', start
