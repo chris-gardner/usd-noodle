@@ -23,7 +23,7 @@ reload(nodz_main)
 
 digitSearch = re.compile(r'\b\d+\b')
 
-logger = logging.getLogger('usd-dependency-graph')
+logger = logging.getLogger('usd-noodle')
 logger.setLevel(logging.INFO)
 if not len(logger.handlers):
     ch = logging.StreamHandler()
@@ -390,7 +390,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.root_node = None
         
         super(NodeGraphWindow, self).__init__(parent)
-        self.settings = QtCore.QSettings("chrisg", "usd-dependency-graph")
+        self.settings = QtCore.QSettings("chrisg", "usd-noodle")
         
         self.nodz = None
         

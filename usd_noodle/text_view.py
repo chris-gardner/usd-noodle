@@ -9,7 +9,7 @@ class TextViewer(QtWidgets.QDialog):
         super(TextViewer, self).__init__(parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         
-        self.settings = QtCore.QSettings("chrisg", "usd-dependency-graph-textview")
+        self.settings = QtCore.QSettings("chrisg", "usd-noodle-textview")
         
         self.usdfile = None
         if usdfile:
