@@ -545,19 +545,27 @@ class NodeGraphWindow(QtWidgets.QDialog):
             
             # node colouring / etc based on the node type
             node_preset = 'node_default'
+            node_icon = "hamburger.png"
             if info.get("type") == 'clip':
                 node_preset = 'node_clip'
+                node_icon = "clip.png"
             elif info.get("type") == 'payload':
                 node_preset = 'node_payload'
+                node_icon = "payload.png"
             elif info.get("type") == 'variant':
                 node_preset = 'node_variant'
+                node_icon = "variant.png"
             elif info.get("type") == 'specialize':
                 node_preset = 'node_specialize'
+                node_icon = "specialize.png"
             elif info.get("type") == 'reference':
                 node_preset = 'node_reference'
-            
+                node_icon = "reference.png"
+
             if not node in nds:
                 nodeA = self.nodz.createNode(name=node, label=node_label, preset=node_preset, position=pos)
+                icon = QtGui.QIcon(os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons", node_icon))
+                nodeA.icon = icon
                 if self.usdfile == node:
                     self.root_node = nodeA
                 
@@ -586,8 +594,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 start_node = self.nodz.scene().nodes[start]
                 self.nodz.createAttribute(node=start_node, name=port_type, index=-1, preset='attr_preset_1',
                                           plug=False, socket=True, dataType=int, socketMaxConnections=-1)
-                # sort the ports alphabetically
-                start_node.attrs = sorted(start_node.attrs)
+                # # sort the ports alphabetically
+                # start_node.attrs = sorted(start_node.attrs)
                 
                 self.nodz.createConnection(end, 'out', start, port_type)
             except:

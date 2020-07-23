@@ -26,7 +26,7 @@
     // Display limits for attributes and title, attributes / title will be skipped when nodes width are less than xx pixels on screen
     "node_title_display_limit": 60,
     "attributes_display_limit": 115,
-    "big_icon_display_limit": 75,
+    "big_icon_display_limit": 60,
 
     // Default colors > Edit values BUT do not delete.
     "alternate_value": 20,
