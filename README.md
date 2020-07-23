@@ -1,6 +1,8 @@
 # usd-noodle
 Pretty node graph showing dependencies of a USD file
 
+![Screenshot](docs/usd_noodle_screenshot.png)
+
 ## Cloning
 
 Make sure you clone with submodules. Like this:
