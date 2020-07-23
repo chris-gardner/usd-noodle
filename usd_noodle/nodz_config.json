@@ -24,9 +24,9 @@
     "connection_sel_width": 5,
 
     // Display limits for attributes and title, attributes / title will be skipped when nodes width are less than xx pixels on screen
-    "node_title_display_limit": 60,
+    "node_title_display_limit": 100,
     "attributes_display_limit": 115,
-    "big_icon_display_limit": 60,
+    "big_icon_display_limit": 100,
 
     // Default colors > Edit values BUT do not delete.
     "alternate_value": 20,
