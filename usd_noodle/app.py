@@ -561,13 +561,16 @@ class NodeGraphWindow(QtWidgets.QDialog):
             elif info.get("type") == 'reference':
                 node_preset = 'node_reference'
                 node_icon = "reference.png"
-
+            
             if not node in nds:
                 nodeA = self.nodz.createNode(name=node, label=node_label, preset=node_preset, position=pos)
-                icon = QtGui.QIcon(os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons", node_icon))
-                nodeA.icon = icon
                 if self.usdfile == node:
                     self.root_node = nodeA
+                    
+                    node_icon = "hamburger.png"
+                icon = QtGui.QIcon(os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons", node_icon))
+                nodeA.icon = icon
+                nodeA.setToolTip(node_label)
                 
                 if nodeA:
                     self.nodz.createAttribute(node=nodeA, name='out', index=0, preset='attr_preset_1',
