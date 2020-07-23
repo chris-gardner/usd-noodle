@@ -17,11 +17,11 @@ import re
 from pprint import pprint
 
 
-digitSearch = re.compile(r'\b\d+\b')
-
 reload(text_view)
 
 reload(nodz_main)
+
+digitSearch = re.compile(r'\b\d+\b')
 
 logger = logging.getLogger('usd-dependency-graph')
 logger.setLevel(logging.INFO)
@@ -441,7 +441,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         logger.info('building nodes')
         configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
         
-        self.nodz = nodz_main.Nodz(None, configPath=configPath)
+        self.nodz = nodz_main.Nodz(self, configPath=configPath)
         self.nodz.editLevel = 1
         # self.nodz.editEnabled = False
         lay.addWidget(self.nodz)
@@ -472,20 +472,9 @@ class NodeGraphWindow(QtWidgets.QDialog):
         print path
     
     
-    def _get_upstream_nodes(self, start_node):
-        ret = [start_node]
-        socket_names = start_node.sockets.keys()
-        for socket in socket_names:
-            for i, conn in enumerate(start_node.sockets[socket].connections):
-                node_coll = [x for x in start_node.scene().nodes.values() if x.name == conn.plugNode]
-                ret.extend(self._get_upstream_nodes(node_coll[0]))
-        
-        return ret
-    
-    
     def node_upstream(self, node_name):
         start_node = self.get_node_from_name(node_name)
-        connected_nodes = self._get_upstream_nodes(start_node)
+        connected_nodes = start_node.upstream_nodes()
         
         for node_name in self.nodz.scene().nodes:
             node = self.nodz.scene().nodes[node_name]
@@ -544,16 +533,12 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.usdfile = x.usdfile
         
         nodz_scene = self.nodz.scene()
-        rect = nodz_scene.sceneRect()
-        center = [0, 0]
         
         # pprint(x.nodes)
         nds = []
         for i, node in enumerate(x.nodes):
             
             info = x.nodes[node]
-            # print node
-            rnd = random.seed(i)
             
             pos = QtCore.QPointF(0, 0)
             node_label = os.path.basename(node)
