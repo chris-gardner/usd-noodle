@@ -545,7 +545,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
             
             # node colouring / etc based on the node type
             node_preset = 'node_default'
-            node_icon = "hamburger.png"
+            node_icon = "sublayer.png"
             if info.get("type") == 'clip':
                 node_preset = 'node_clip'
                 node_icon = "clip.png"
