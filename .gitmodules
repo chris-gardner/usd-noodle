@@ -1,4 +1,4 @@
-[submodule "dependency_graph/vendor/Nodz"]
-	path = dependency_graph/vendor/Nodz
+[submodule "usd_noodle/vendor/Nodz"]
+	path = usd_noodle/vendor/Nodz
 	url = https://github.com/chris-gardner/Nodz.git
 	branch = main

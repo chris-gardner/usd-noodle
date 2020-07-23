@@ -606,28 +606,97 @@ def dep_2(usdfile, level=1):
     layer = Sdf.Layer.FindOrOpen(usdfile)
     if not layer:
         return
-    print id, layer.realPath
+    print id, layer.realPath, type(layer)
     root = layer.pseudoRoot
     print id, 'root', root
-    
+    # print dir(layer)
     # print id, 'children'.center(40, '-')
     
     child_list = get_flat_child_list(root)
     
     for child in child_list:
-        # print id, child
+        print id, child, type(child)
+        # print dir(child)
+        attributes = child.attributes
+        if attributes:
+            print 'attributes'.center(40, '-')
+            
+            for attr in attributes:
+                if attr.typeName == 'asset':
+                    print 'ASSET'
+                    print attr, type(attr)
+                    value = attr.default
+                    print value, type(value)
+                    print dir(value)
+                    print value.path
+                    if value.path:
+                        resolved_path = Sdf.ComputeAssetPathRelativeToLayer(layer, value.path)
+                        print resolved_path, os.path.isfile(resolved_path)
+                    # print dir(attr)
+                    # print attr.GetConciseRelativePaths()
+                    # connpaths = attr.connectionPathList
+                    # print connpaths
+                    # # print type(connpaths)
+                    # for itemlist in [connpaths.appendedItems, connpaths.explicitItems, connpaths.addedItems,
+                    #                  connpaths.prependedItems, connpaths.orderedItems]:
+                    #     for item in itemlist:
+                    #         print item, type(item)
+                    # # print attr.ConnectionPathsKey
+                    # print 'assetInfo', attr.assetInfo
+                    # print 'allowedTokens', attr.allowedTokens
+                    # print 'displayUnit', attr.displayUnit
+                    # print 'roleName', attr.roleName
+                    # print 'valueType', attr.valueType
+                    # print 'name', attr.name
+                    # print 'default', attr.default
+                    
+                    
+                    # print attr.path
+                    # print layer.ListTimeSamplesForPath(attr.path)
+                    # print layer.QueryTimeSample(attr.path, 0)
+                    # print 'assetInfo', attr.typeName, type(attr.typeName)
+                    # if attr.HasConnectionPaths():
+                    #     print attr.GetConnectionPathList()
+            
+            print 'END attributes'.center(40, '-')
+        # print 'properties'.center(40, '-')
+        # for prop in child.properties:
+        #     print prop, type(prop)
+        #     # print dir(prop)
+        #     # print 'assetInfo', prop.assetInfo
+        #     # print 'rolename:', prop.roleName
+        #     # print 'GetAllowedTokens:', prop.allowedTokens
+        #     connpaths = prop.typeName
+        #     connpaths = prop.connectionPathList
+        #     print connpaths
+        #     # print type(connpaths)
+        #     for itemlist in [connpaths.appendedItems, connpaths.explicitItems, connpaths.addedItems,
+        #                      connpaths.prependedItems, connpaths.orderedItems]:
+        #         for item in itemlist:
+        #             print item, type(item)
+        #
+        # print 'END properties'.center(40, '-')
+        
+        # for key in child.ListInfoKeys():
+        #     print child.GetInfo(key)
+        #
+        # print child.GetMetaDataInfoKeys()
+        
+        # raise RuntimeError("poo")
+        
         clip_info = child.GetInfo("clips")
         # pprint(clip_info)
         
-        for clip_set_name in clip_info:
-            clip_set = clip_info[clip_set_name]
-            pprint(clip_set)
-            print clip_set_name, clip_set.get("assetPaths"), clip_set.get("manifestAssetPath"), clip_set.get("primPath")
-            for assetPath in clip_set.get("assetPaths"):
-                print id, Sdf.ComputeAssetPathRelativeToLayer(layer, assetPath.path)
-            manifestPath = clip_set.get("manifestAssetPath")
-            print manifestPath, type(manifestPath)
-            print id, Sdf.ComputeAssetPathRelativeToLayer(layer, manifestPath.path)
+        # for clip_set_name in clip_info:
+        #     clip_set = clip_info[clip_set_name]
+        #     print clip_set.keys()
+        #     pprint(clip_set)
+        #     print clip_set_name, clip_set.get("assetPaths"), clip_set.get("manifestAssetPath"), clip_set.get("primPath")
+        #     for assetPath in clip_set.get("assetPaths"):
+        #         print id, Sdf.ComputeAssetPathRelativeToLayer(layer, assetPath.path)
+        #     manifestPath = clip_set.get("manifestAssetPath")
+        #     print manifestPath, type(manifestPath)
+        #     print id, Sdf.ComputeAssetPathRelativeToLayer(layer, manifestPath.path)
         
         if child.variantSets:
             print 'variants'.center(40, '-')
