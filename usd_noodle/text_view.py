@@ -1,5 +1,6 @@
 import shutil
 import os, os.path
+from functools import partial
 
 from Qt import QtWidgets, QtCore, QtWidgets, QtGui
 
@@ -15,7 +16,7 @@ class TextViewer(QtWidgets.QDialog):
         if usdfile:
             self.usdfile = usdfile
             print 'usdfile', self.usdfile
-            
+        
         self.data = None
         if input_text:
             self.data = input_text
@@ -34,8 +35,24 @@ class TextViewer(QtWidgets.QDialog):
         # font.setPointSize(10)
         self.editor.setFont(font)
         self.editor.setTabStopWidth(40)
+        self.editor.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
         
         self.verticalLayout.addWidget(self.editor)
+        
+        self.findLayout = QtWidgets.QHBoxLayout()
+        self.verticalLayout.addLayout(self.findLayout)
+        
+        self.find_edit = QtWidgets.QLineEdit()
+        self.find_edit.setPlaceholderText("Find...")
+        self.findLayout.addWidget(self.find_edit)
+        
+        self.find_prev_btn = QtWidgets.QPushButton('Previous')
+        self.find_prev_btn.clicked.connect(partial(self.find_string, forwards=False))
+        self.findLayout.addWidget(self.find_prev_btn)
+        
+        self.find_next_btn = QtWidgets.QPushButton('Next')
+        self.find_next_btn.clicked.connect(partial(self.find_string, forwards=True))
+        self.findLayout.addWidget(self.find_next_btn)
         
         self.setWindowTitle(self.usdfile)
         
@@ -45,6 +62,15 @@ class TextViewer(QtWidgets.QDialog):
             self.resize(900, 500)
         
         self.loadData()
+    
+    
+    def find_string(self, forwards=True):
+        find_string = self.find_edit.text()
+        options = QtGui.QTextDocument.FindFlag(0)
+        
+        if not forwards:
+            options = options | QtGui.QTextDocument.FindBackward
+        found = self.editor.find(find_string, options)
     
     
     def closeEvent(self, *args, **kwargs):
@@ -68,7 +94,7 @@ class TextViewer(QtWidgets.QDialog):
             fp = open(self.usdfile, 'r')
             self.data = fp.read()
             fp.close()
-            
+        
         self.editor.setPlainText(self.data)
         # make sure we reset the dirty state after setting the editor contents
         self.dirty = False
