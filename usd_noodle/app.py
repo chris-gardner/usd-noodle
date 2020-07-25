@@ -134,8 +134,10 @@ class DependencyWalker(object):
                         filebase, ext = os.path.splitext(resolved_path)
                         info['type'] = 'ext'
                         if ext in ['.jpg', '.tex', '.tx', '.png', '.exr', '.hdr', '.tga', '.tif', '.tiff',
-                                   '.mov', '.m4v', '.mp4']:
+                                   '.pic', '.gif', '.psd', '.ptex', '.cin', '.dpx', '.bmp', '.iff',
+                                   '.mov', '.m4v', '.mp4', '.webp']:
                             info['type'] = 'tex'
+                            info['colorspace'] = attr.colorSpace
                         
                         self.nodes[resolved_path] = info
                         
