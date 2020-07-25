@@ -294,7 +294,8 @@ class DependencyWalker(object):
             info['online'] = os.path.isfile(refpath)
             info['path'] = refpath
             info['type'] = 'sublayer'
-            
+            info['specifier'] = child.specifier.displayName
+
             self.nodes[refpath] = info
             
             if not [layer_path, refpath, 'sublayer'] in self.edges:
@@ -587,8 +588,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 nodeA = self.nodz.createNode(name=node, label=node_label, preset=node_preset, position=pos)
                 if self.usdfile == node:
                     self.root_node = nodeA
-                    
                     node_icon = "hamburger.png"
+                    
                 icon = QtGui.QIcon(os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons", node_icon))
                 nodeA.icon = icon
                 nodeA.setToolTip(node_label)
@@ -602,6 +603,10 @@ class NodeGraphWindow(QtWidgets.QDialog):
                     if info['online'] is False:
                         self.nodz.createAttribute(node=nodeA, name='OFFLINE', index=0, preset='attr_preset_2',
                                                   plug=False, socket=False)
+                        
+                    if info.get("type") == 'sublayer':
+                        self.nodz.createAttribute(node=nodeA, name='spec: {}'.format(info.get("specifier")),
+                                                  index=0, preset='attr_preset_3', plug=False, socket=False)
                 
                 nds.append(node)
         
