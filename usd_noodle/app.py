@@ -170,7 +170,8 @@ class DependencyWalker(object):
                 
                 allFilesFound = True
                 for path in clip_asset_paths:
-                    if (path.resolvedPath == ''):
+                    clip_path = Sdf.ComputeAssetPathRelativeToLayer(layer, path.path)
+                    if not os.path.isfile(clip_path):
                         allFilesFound = False
                         break
                 
@@ -178,13 +179,11 @@ class DependencyWalker(object):
                 # TODO: validate presence of all files in the clip seq. bg thread?
                 
                 manifestPath = clip_set.get("manifestAssetPath")
-                # print manifestPath, type(manifestPath)
                 refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, clip_asset_paths[0].path)
                 clipmanifest_path = Sdf.ComputeAssetPathRelativeToLayer(layer, manifestPath.path)
-                # print id, Sdf.ComputeAssetPathRelativeToLayer(layer, manifestPath.path)
                 
                 info = {}
-                info['online'] = True
+                info['online'] = allFilesFound
                 info['path'] = refpath
                 info['type'] = 'clip'
                 
@@ -227,7 +226,7 @@ class DependencyWalker(object):
                                     payloads.append(refpath)
                                     
                                     info = {}
-                                    info['online'] = True
+                                    info['online'] = os.path.isfile(refpath)
                                     info['path'] = refpath
                                     info['type'] = 'payload'
                                     
@@ -244,7 +243,7 @@ class DependencyWalker(object):
                                     references.append(refpath)
                                     
                                     info = {}
-                                    info['online'] = True
+                                    info['online'] = os.path.isfile(refpath)
                                     info['path'] = refpath
                                     info['type'] = 'reference'
                                     
@@ -261,7 +260,7 @@ class DependencyWalker(object):
                     payloads.append(refpath)
                     
                     info = {}
-                    info['online'] = True
+                    info['online'] = os.path.isfile(refpath)
                     info['path'] = refpath
                     info['type'] = 'payload'
                     
@@ -278,7 +277,7 @@ class DependencyWalker(object):
                     references.append(refpath)
                     
                     info = {}
-                    info['online'] = True
+                    info['online'] = os.path.isfile(refpath)
                     info['path'] = refpath
                     info['type'] = 'reference'
                     
@@ -292,7 +291,7 @@ class DependencyWalker(object):
             sublayers.append(refpath)
             
             info = {}
-            info['online'] = True
+            info['online'] = os.path.isfile(refpath)
             info['path'] = refpath
             info['type'] = 'sublayer'
             
