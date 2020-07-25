@@ -122,21 +122,25 @@ class DependencyWalker(object):
                     if attr.typeName == 'asset':
                         value = attr.default
                         # sometimes you get empty paths
-                        if value.path:
-                            resolved_path = Sdf.ComputeAssetPathRelativeToLayer(layer, value.path)
-                            info = {}
-                            info['online'] = os.path.isfile(resolved_path)
-                            info['path'] = resolved_path
-                            filebase, ext = os.path.splitext(resolved_path)
-                            info['type'] = 'ext'
-                            if ext in ['.jpg', '.tex', '.tx', '.png', '.exr', '.hdr', '.tga', '.tif', '.tiff',
-                                       '.mov', '.m4v', '.mp4']:
-                                info['type'] = 'tex'
-                            
-                            self.nodes[resolved_path] = info
-                            
-                            if not [layer_path, resolved_path, info['type']] in self.edges:
-                                self.edges.append([layer_path, resolved_path, info['type']])
+                        if not value:
+                            continue
+                        if not value.path:
+                            continue
+                        
+                        resolved_path = Sdf.ComputeAssetPathRelativeToLayer(layer, value.path)
+                        info = {}
+                        info['online'] = os.path.isfile(resolved_path)
+                        info['path'] = resolved_path
+                        filebase, ext = os.path.splitext(resolved_path)
+                        info['type'] = 'ext'
+                        if ext in ['.jpg', '.tex', '.tx', '.png', '.exr', '.hdr', '.tga', '.tif', '.tiff',
+                                   '.mov', '.m4v', '.mp4']:
+                            info['type'] = 'tex'
+                        
+                        self.nodes[resolved_path] = info
+                        
+                        if not [layer_path, resolved_path, info['type']] in self.edges:
+                            self.edges.append([layer_path, resolved_path, info['type']])
             
             clip_info = child.GetInfo("clips")
             # pprint(clip_info)
@@ -295,7 +299,7 @@ class DependencyWalker(object):
             info['path'] = refpath
             info['type'] = 'sublayer'
             info['specifier'] = child.specifier.displayName
-
+            
             self.nodes[refpath] = info
             
             if not [layer_path, refpath, 'sublayer'] in self.edges:
@@ -589,7 +593,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 if self.usdfile == node:
                     self.root_node = nodeA
                     node_icon = "hamburger.png"
-                    
+                
                 icon = QtGui.QIcon(os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons", node_icon))
                 nodeA.icon = icon
                 nodeA.setToolTip(node_label)
@@ -603,7 +607,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                     if info['online'] is False:
                         self.nodz.createAttribute(node=nodeA, name='OFFLINE', index=0, preset='attr_preset_2',
                                                   plug=False, socket=False)
-                        
+                    
                     if info.get("type") == 'sublayer':
                         self.nodz.createAttribute(node=nodeA, name='spec: {}'.format(info.get("specifier")),
                                                   index=0, preset='attr_preset_3', plug=False, socket=False)
