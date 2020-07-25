@@ -113,8 +113,6 @@ class DependencyWalker(object):
         
         for child in child_list:
             # print id, child
-            clip_info = child.GetInfo("clips")
-            # pprint(clip_info)
             
             if self.walk_attributes:
                 attributes = child.attributes
@@ -129,13 +127,19 @@ class DependencyWalker(object):
                             info = {}
                             info['online'] = os.path.isfile(resolved_path)
                             info['path'] = resolved_path
-                            info['type'] = 'tex'
+                            filebase, ext = os.path.splitext(resolved_path)
+                            info['type'] = 'ext'
+                            if ext in ['.jpg', '.tex', '.tx', '.png', '.exr', '.hdr', '.tga', '.tif', '.tiff',
+                                       '.mov', '.m4v', '.mp4']:
+                                info['type'] = 'tex'
                             
                             self.nodes[resolved_path] = info
                             
-                            if not [layer_path, resolved_path, 'tex'] in self.edges:
-                                self.edges.append([layer_path, resolved_path, 'tex'])
+                            if not [layer_path, resolved_path, info['type']] in self.edges:
+                                self.edges.append([layer_path, resolved_path, info['type']])
             
+            clip_info = child.GetInfo("clips")
+            # pprint(clip_info)
             for clip_set_name in clip_info:
                 clip_set = clip_info[clip_set_name]
                 # print clip_set_name, clip_set.get("assetPaths"), clip_set.get("manifestAssetPath"), clip_set.get(
@@ -188,10 +192,25 @@ class DependencyWalker(object):
                 
                 if not [layer_path, nodeName, 'clip'] in self.edges:
                     self.edges.append([layer_path, nodeName, 'clip'])
+                
+                if not [nodeName, clipmanifest_path, 'manifest'] in self.edges:
+                    self.edges.append([nodeName, clipmanifest_path, 'manifest'])
             
             if child.variantSets:
                 for varset in child.variantSets:
                     # print varset.name
+                    variant_path = '{}:{}'.format(layer.realPath, varset.name)
+                    
+                    info = {}
+                    info['online'] = True
+                    info['path'] = variant_path
+                    info['type'] = 'variant'
+                    
+                    self.nodes[variant_path] = info
+                    
+                    if not [layer_path, variant_path, 'variant'] in self.edges:
+                        self.edges.append([layer_path, variant_path, 'variant'])
+                    
                     for variant_name in varset.variants.keys():
                         variant = varset.variants[variant_name]
                         payloadList = variant.primSpec.payloadList
@@ -214,8 +233,8 @@ class DependencyWalker(object):
                                     
                                     self.nodes[refpath] = info
                                     
-                                    if not [layer_path, refpath, 'payload'] in self.edges:
-                                        self.edges.append([layer_path, refpath, 'payload'])
+                                    if not [variant_path, refpath, variant_name] in self.edges:
+                                        self.edges.append([variant_path, refpath, variant_name])
                             
                             referenceList = self.flatten_ref_list(child.referenceList)
                             for reference in referenceList:
@@ -231,8 +250,8 @@ class DependencyWalker(object):
                                     
                                     self.nodes[refpath] = info
                                     
-                                    if not [layer_path, refpath, 'reference'] in self.edges:
-                                        self.edges.append([layer_path, refpath, 'reference'])
+                                    if not [variant_path, refpath, variant_name] in self.edges:
+                                        self.edges.append([variant_path, refpath, variant_name])
             
             payloadList = self.flatten_ref_list(child.payloadList)
             for payload in payloadList:
@@ -561,6 +580,9 @@ class NodeGraphWindow(QtWidgets.QDialog):
             elif info.get("type") == 'reference':
                 node_preset = 'node_reference'
                 node_icon = "reference.png"
+            elif info.get("type") == 'tex':
+                node_preset = 'node_texture'
+                node_icon = "texture.png"
             
             if not node in nds:
                 nodeA = self.nodz.createNode(name=node, label=node_label, preset=node_preset, position=pos)
