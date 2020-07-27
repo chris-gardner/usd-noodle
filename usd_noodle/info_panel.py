@@ -144,6 +144,60 @@ class FloatAttrEdit(StringAttrEdit):
         self.lineEdit.setValue(float(value))
 
 
+class TextAttrEdit(StringAttrEdit):
+    """
+    An edit widget that is basically a general edit, but also stores the
+    attribute object, dagNode we're associated with, and dag the node is a
+    member of.
+    """
+    
+    
+    def __init__(self, label, value, parent=None, tooltip=None, enabled=True, readOnly=False):
+        """
+        """
+        GeneralEdit.__init__(self,
+                             label=label,
+                             toolTip=tooltip,
+                             enabled=enabled,
+                             readOnly=readOnly,
+                             parent=parent)
+        self.setValue(value)
+    
+    
+    def draw(self):
+        upperLayout = QtWidgets.QHBoxLayout()
+        upperLayout.setContentsMargins(0, 0, 0, 0)
+        # upperLayout.setSpacing(0)
+        
+        self.label = QtWidgets.QLabel(self.label, self)
+        self.label.setMinimumWidth(left_pad)
+        self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
+        if self.toolTip:
+            self.label.setToolTip(self.toolTip)
+        
+        self.lineEdit = QtWidgets.QPlainTextEdit(self)
+        self.lineEdit.setEnabled(self.enabled)
+        self.lineEdit.setReadOnly(self.readOnly)
+        self.lineEdit.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        
+        upperLayout.addWidget(self.label)
+        upperLayout.addWidget(self.lineEdit)
+        
+        self.setLayout(upperLayout)
+        
+        # Chain signals out with property name and value
+        self.lineEdit.textChanged.connect(
+            lambda: self.valueChanged.emit(self.label.text(), self.lineEdit.toPlainText()))
+    
+    
+    def setValue(self, value):
+        """
+        A clean interface for setting the property value and emitting signals.
+        """
+        self.value = value
+        self.lineEdit.setPlainText(value)
+
+
 class ListAttrEdit(GeneralEdit):
     """
     An edit widget that is basically a general edit, but also stores the
@@ -189,6 +243,7 @@ class ListAttrEdit(GeneralEdit):
         """
         A clean interface for setting the property value and emitting signals.
         """
+        self.value = values
         self.lineEdit.clear()
         for val in values:
             self.lineEdit.addItem(QtWidgets.QListWidgetItem(val))
@@ -300,7 +355,13 @@ class InfoPanel(QtWidgets.QWidget):
         
         self.attrLayout.addWidget(StringAttrEdit('Name', os.path.basename(self.usdfile), readOnly=True))
         
-        self.attrLayout.addWidget(BoolAttrEdit('Online', os.path.isfile(self.usdfile), readOnly=True))
+        file_online = os.path.isfile(self.usdfile)
+        self.attrLayout.addWidget(BoolAttrEdit('Online', file_online, readOnly=True))
+        
+        if file_online:
+            self.attrLayout.addWidget(StringAttrEdit('Size',
+                                                     '{:.2f}mb'.format(os.path.getsize(self.usdfile) / 1024.0 / 1024.0),
+                                                     readOnly=True))
         
         self.attrLayout.addWidget(StringAttrEdit('Path', self.usdfile, readOnly=True))
         
@@ -341,7 +402,10 @@ class InfoPanel(QtWidgets.QWidget):
         if 'info' in info:
             info_dict = info.get("info")
             for key in info_dict:
-                self.attrLayout.addWidget(StringAttrEdit(key, info_dict[key], readOnly=True))
+                if key in ['comment', 'doc', 'documentation']:
+                    self.attrLayout.addWidget(TextAttrEdit(key, info_dict[key], readOnly=True))
+                else:
+                    self.attrLayout.addWidget(StringAttrEdit(key, info_dict[key], readOnly=True))
         
         if not fileext.startswith(".usd"):
             return
