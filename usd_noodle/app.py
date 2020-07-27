@@ -9,9 +9,11 @@ from functools import partial
 import subprocess
 import threading
 import sys
+import platform
 
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vendor'))
+
 from Qt import QtCore, QtWidgets, QtGui
 from pxr import Usd, Sdf, Ar, UsdUtils
 
@@ -496,7 +498,28 @@ class NodeGraphWindow(QtWidgets.QDialog):
         node = self.get_node_from_name(node_name)
         userdata = node.userData
         path = userdata.get('path')
-        print(path)
+        if path:
+            clipboard = QtWidgets.QApplication.clipboard()
+            clipboard.setText(path)
+            print(path)
+    
+    
+    def reveal_file(self, node_name):
+        node = self.get_node_from_name(node_name)
+        userdata = node.userData
+        browsePath = userdata.get('path')
+        
+        if browsePath:
+            pltName = platform.system()
+            if pltName == 'Windows':
+                browsePath = browsePath.replace('/', '\\')
+                os.system("explorer.exe /select,%s" % (browsePath))
+            
+            elif pltName == 'Darwin':
+                os.system('open -R "%s"' % browsePath)
+            
+            elif pltName == 'Linux':
+                os.system('xdg-open "%s"' % os.path.dirname(browsePath))
     
     
     def node_upstream(self, node_name):
@@ -534,7 +557,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
     
     def node_context_menu(self, event, node):
         menu = QtWidgets.QMenu()
-        menu.addAction("Node Path", partial(self.node_path, node))
+        menu.addAction("Copy Node Path", partial(self.node_path, node))
+        menu.addAction("Reveal in filesystem", partial(self.reveal_file, node))
         menu.addAction("Inspect layer...", partial(self.view_usdfile, node))
         menu.addAction("UsdView...", partial(self.view_usdview, node))
         menu.addAction("Select upstream", partial(self.node_upstream, node))
@@ -611,6 +635,12 @@ class NodeGraphWindow(QtWidgets.QDialog):
                     if info['online'] is False:
                         self.nodz.createAttribute(node=nodeA, name='OFFLINE', index=0, preset='attr_preset_2',
                                                   plug=False, socket=False)
+                        # override the node's draw pen with a
+                        # lovely red outline
+                        nodeA._pen = QtGui.QPen()
+                        nodeA._pen.setStyle(QtCore.Qt.SolidLine)
+                        nodeA._pen.setWidth(5)
+                        nodeA._pen.setColor(QtGui.QColor(255, 0, 0))
                     
                     if info.get("type") == 'sublayer':
                         self.nodz.createAttribute(node=nodeA, name='spec: {}'.format(info.get("specifier")),
