@@ -1,3 +1,5 @@
+from __future__ import print_function
+
 import shutil
 import os, os.path
 from functools import partial

@@ -20,6 +20,10 @@ from pxr import Usd, Sdf, Ar, UsdUtils
 import utils
 from vendor.Nodz import nodz_main
 import text_view
+import info_panel
+
+
+reload(info_panel)
 
 import re
 from pprint import pprint
@@ -359,12 +363,6 @@ def find_node(node_coll, attr_name, attr_value):
             return node
 
 
-@QtCore.Slot(str, object)
-def on_nodeMoved(nodeName, nodePos):
-    # print('node {0} moved to {1}'.format(nodeName, nodePos))
-    pass
-
-
 class FindNodeWindow(QtWidgets.QDialog):
     def __init__(self, nodz, parent=None):
         self.nodz = nodz
@@ -435,10 +433,26 @@ class NodeGraphWindow(QtWidgets.QDialog):
             self.restoreGeometry(self.settings.value("geometry"))
         else:
             self.resize(600, 400)
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint);
-        lay = QtWidgets.QVBoxLayout()
-        self.setLayout(lay)
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint)
         
+        self.top_layout = QtWidgets.QHBoxLayout()
+        self.top_layout.setContentsMargins(0, 0, 0, 0);
+        self.setLayout(self.top_layout)
+        
+        splitter = QtWidgets.QSplitter()
+        
+        self.top_layout.addWidget(splitter)
+        
+        main_widget = QtWidgets.QWidget()
+        main_widget.setContentsMargins(0, 0, 0, 0);
+        
+        splitter.addWidget(main_widget)
+        lay = QtWidgets.QVBoxLayout()
+        # lay.setContentsMargins(0, 0, 0, 0);
+        
+        main_widget.setLayout(lay)
+        
+        self.top_layout.addLayout(lay)
         self.toolbar_lay = QtWidgets.QHBoxLayout()
         lay.addLayout(self.toolbar_lay)
         
@@ -467,6 +481,9 @@ class NodeGraphWindow(QtWidgets.QDialog):
         toolbarspacer = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.toolbar_lay.addItem(toolbarspacer)
         
+        self.info_panel = info_panel.InfoPanel(parent=self)
+        splitter.addWidget(self.info_panel)
+        
         logger.info('building nodes')
         configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
         
@@ -477,8 +494,26 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.nodz.initialize()
         self.nodz.fitInView(-500, -500, 500, 500)
         
-        self.nodz.signal_NodeMoved.connect(on_nodeMoved)
+        splitter.setSizes([self.width() * 0.8, self.width() * 0.2])
+        
+        self.nodz.signal_NodeMoved.connect(self.on_nodeMoved)
+        self.nodz.signal_NodeSelected.connect(self.on_nodeSelected)
         self.nodz.signal_NodeContextMenuEvent.connect(self.node_context_menu)
+    
+    
+    def on_nodeMoved(self, nodeName, nodePos):
+        # print('node {0} moved to {1}'.format(nodeName, nodePos))
+        pass
+    
+    
+    def on_nodeSelected(self, selected_nodes):
+        if not selected_nodes:
+            return
+        node = self.get_node_from_name(selected_nodes[0])
+        userdata = node.userData
+        path = userdata.get('path')
+        if path:
+            self.info_panel.loadData(path, userdata)
     
     
     def findWindow(self):
@@ -700,7 +735,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
             self.load_file()
     
     
-    def closeEvent(self, *args, **kwargs):
+    def closeEvent(self, event):
         """
         Window close event. Saves preferences. Impregnates your dog.
         """
@@ -708,7 +743,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
             self.find_win.close()
         
         self.settings.setValue("geometry", self.saveGeometry())
-        super(NodeGraphWindow, self).closeEvent(*args)
+        super(NodeGraphWindow, self).closeEvent(event)
 
 
 def main(usdfile=None):
