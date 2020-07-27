@@ -292,6 +292,7 @@ class InfoPanel(QtWidgets.QWidget):
             specifier = StringAttrEdit('Specifier', info.get("specifier"), readOnly=True)
             self.attrLayout.addWidget(specifier)
             
+        if 'info' in info:
             info_dict = info.get("info")
             for key in info_dict:
                 specifier = StringAttrEdit(key, info_dict[key], readOnly=True)
