@@ -15,7 +15,7 @@ class TextViewer(QtWidgets.QDialog):
         self.usdfile = None
         if usdfile:
             self.usdfile = usdfile
-            print 'usdfile', self.usdfile
+            print('usdfile', self.usdfile)
         
         self.data = None
         if input_text:

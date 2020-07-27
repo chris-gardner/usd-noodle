@@ -1,25 +1,27 @@
+from __future__ import print_function
 import logging
 import os.path
+import sys
+
 import random
 import fnmatch
 from functools import partial
 import subprocess
 import threading
+import sys
 
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vendor'))
 from Qt import QtCore, QtWidgets, QtGui
 from pxr import Usd, Sdf, Ar, UsdUtils
 
 import utils
 from vendor.Nodz import nodz_main
-from . import text_view
+import text_view
 
 import re
 from pprint import pprint
 
-
-reload(text_view)
-
-reload(nodz_main)
 
 digitSearch = re.compile(r'\b\d+\b')
 
@@ -33,7 +35,7 @@ logger.propagate = False
 
 
 def launch_usdview(usdfile):
-    print 'launching usdview', usdfile
+    print('launching usdview', usdfile)
     subprocess.call(['usdview', usdfile], shell=True)
 
 
@@ -103,16 +105,16 @@ class DependencyWalker(object):
         layer = Sdf.Layer.FindOrOpen(layer_path)
         if not layer:
             return
-        # print id, layer.realPath
+        # print(id, layer.realPath)
         root = layer.pseudoRoot
-        # print id, 'root', root
+        # print(id, 'root', root)
         
-        # print id, 'children'.center(40, '-')
+        # print(id, 'children'.center(40, '-'))
         
         child_list = self.get_flat_child_list(root)
         
         for child in child_list:
-            # print id, child
+            # print(id, child)
             
             if self.walk_attributes:
                 attributes = child.attributes
@@ -148,7 +150,7 @@ class DependencyWalker(object):
             # pprint(clip_info)
             for clip_set_name in clip_info:
                 clip_set = clip_info[clip_set_name]
-                # print clip_set_name, clip_set.get("assetPaths"), clip_set.get("manifestAssetPath"), clip_set.get(
+                # print(clip_set_name, clip_set.get("assetPaths"), clip_set.get("manifestAssetPath"), clip_set.get()
                 #     "primPath")
                 
                 """
@@ -203,7 +205,7 @@ class DependencyWalker(object):
             
             if child.variantSets:
                 for varset in child.variantSets:
-                    # print varset.name
+                    # print(varset.name)
                     variant_path = '{}:{}'.format(layer.realPath, varset.name)
                     
                     info = {}
@@ -331,7 +333,7 @@ class DependencyWalker(object):
     
     
     def layerprops(self, layer):
-        print 'layer props'.center(40, '-')
+        print('layer props'.center(40, '-'))
         
         for prop in ['anonymous', 'colorConfiguration', 'colorManagementSystem', 'comment', 'customLayerData',
                      'defaultPrim', 'dirty', 'documentation', 'empty', 'endTimeCode', 'expired', 'externalReferences',
@@ -340,12 +342,12 @@ class DependencyWalker(object):
                      'permissionToSave', 'pseudoRoot', 'realPath', 'repositoryPath', 'rootPrimOrder', 'rootPrims',
                      'sessionOwner', 'startTimeCode', 'subLayerOffsets', 'subLayerPaths', 'timeCodesPerSecond',
                      'version']:
-            print prop, getattr(layer, prop)
-        print ''.center(40, '-')
+            prop, getattr(layer, prop)
+        print(''.center(40, '-'))
         
         defaultprim = layer.defaultPrim
         if defaultprim:
-            print defaultprim, type(defaultprim)
+            defaultprim, type(defaultprim)
 
 
 def find_node(node_coll, attr_name, attr_value):
@@ -494,7 +496,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         node = self.get_node_from_name(node_name)
         userdata = node.userData
         path = userdata.get('path')
-        print path
+        print(path)
     
     
     def node_upstream(self, node_name):
@@ -532,7 +534,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
     
     def node_context_menu(self, event, node):
         menu = QtWidgets.QMenu()
-        menu.addAction("Print Node Path", partial(self.node_path, node))
+        menu.addAction("Node Path", partial(self.node_path, node))
         menu.addAction("Inspect layer...", partial(self.view_usdfile, node))
         menu.addAction("UsdView...", partial(self.view_usdview, node))
         menu.addAction("Select upstream", partial(self.node_upstream, node))
@@ -618,7 +620,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         # pprint(x.edges)
         
-        # print 'wiring nodes'.center(40, '-')
+        # 'wiring nodes'.center(40, '-')
         # create all the node connections
         for edge in x.edges:
             
@@ -634,7 +636,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 
                 self.nodz.createConnection(end, 'out', start, port_type)
             except:
-                print 'cannot find start node', start
+                print('cannot find start node', start)
         
         # layout nodes!
         self.nodz.arrangeGraph(self.root_node)
@@ -663,7 +665,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
             QtWidgets.QApplication.activeWindow(), 'Open File', startPath or '/', multipleFilters,
             None, QtWidgets.QFileDialog.DontUseNativeDialog)
         if filename[0]:
-            print filename[0]
+            print(filename[0])
             self.usdfile = filename[0]
             self.load_file()
     
@@ -686,3 +688,10 @@ def main(usdfile=None):
     par = QtWidgets.QApplication.activeWindow()
     win = NodeGraphWindow(usdfile=usdfile, parent=par)
     win.show()
+    return win
+
+
+if __name__ == "__main__":
+    app = QtWidgets.QApplication(sys.argv)
+    win = main()
+    sys.exit(app.exec_())
