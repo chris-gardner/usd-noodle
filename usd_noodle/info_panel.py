@@ -8,6 +8,198 @@ from Qt import QtWidgets, QtCore, QtWidgets, QtGui
 from pxr import Usd, Sdf, Ar, UsdUtils
 
 
+left_pad = 80
+
+
+class QHSeperationLine(QtWidgets.QFrame):
+    def __init__(self):
+        super(QHSeperationLine, self).__init__()
+        self.setMinimumWidth(1)
+        self.setFixedHeight(20)
+        self.setFrameShape(QtWidgets.QFrame.HLine)
+        self.setFrameShadow(QtWidgets.QFrame.Sunken)
+        self.setSizePolicy(QtWidgets.QSizePolicy.Preferred, QtWidgets.QSizePolicy.Minimum)
+
+
+class GeneralEdit(QtWidgets.QWidget):
+    # Signals
+    valueChanged = QtCore.Signal(str, object)
+    
+    
+    def __init__(self, label="Unknown", enabled=True, readOnly=False, toolTip=None, parent=None):
+        QtWidgets.QWidget.__init__(self, parent)
+        self.label = label
+        self.enabled = enabled
+        self.readOnly = readOnly
+        self.toolTip = toolTip
+        self.draw()
+    
+    
+    def draw(self):
+        # The upper layout holds the label, the value, and the "expand" button
+        upperLayout = QtWidgets.QHBoxLayout()
+        upperLayout.setContentsMargins(0, 0, 0, 0)
+        # upperLayout.setSpacing(0)
+        
+        self.label = QtWidgets.QLabel(self.label, self)
+        self.label.setMinimumWidth(left_pad)
+        self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        if self.toolTip:
+            self.label.setToolTip(self.toolTip)
+        
+        self.lineEdit = QtWidgets.QLineEdit(self)
+        self.lineEdit.setAlignment(QtCore.Qt.AlignLeft)
+        self.lineEdit.setEnabled(self.enabled)
+        self.lineEdit.setReadOnly(self.readOnly)
+        self.lineEdit.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        
+        upperLayout.addWidget(self.label)
+        upperLayout.addWidget(self.lineEdit)
+        
+        self.setLayout(upperLayout)
+        
+        # Chain signals out with property name and value
+        self.lineEdit.editingFinished.connect(
+            lambda: self.valueChanged.emit(self.label.text(), self.lineEdit.text()))
+    
+    
+    def setValue(self, value):
+        """
+        A clean interface for setting the property value and emitting signals.
+        """
+        self.lineEdit.setText(str(value))
+
+
+###############################################################################
+###############################################################################
+class StringAttrEdit(GeneralEdit):
+    """
+    An edit widget that is basically a general edit, but also stores the
+    attribute object, dagNode we're associated with, and dag the node is a
+    member of.
+    """
+    
+    
+    def __init__(self, label, value, parent=None, tooltip=None, enabled=True, readOnly=False):
+        """
+        """
+        GeneralEdit.__init__(self,
+                             label=label,
+                             toolTip=tooltip,
+                             enabled=enabled,
+                             readOnly=readOnly,
+                             parent=parent)
+        self.setValue(value)
+
+
+class FloatAttrEdit(StringAttrEdit):
+    """
+    An edit widget that is basically a general edit, but also stores the
+    attribute object, dagNode we're associated with, and dag the node is a
+    member of.
+    """
+    
+    
+    def __init__(self, label, value, parent=None, tooltip=None, enabled=True, readOnly=False):
+        """
+        """
+        GeneralEdit.__init__(self,
+                             label=label,
+                             toolTip=tooltip,
+                             enabled=enabled,
+                             readOnly=readOnly,
+                             parent=parent)
+        self.setValue(value)
+    
+    
+    def draw(self):
+        upperLayout = QtWidgets.QHBoxLayout()
+        upperLayout.setContentsMargins(0, 0, 0, 0)
+        # upperLayout.setSpacing(0)
+        
+        self.label = QtWidgets.QLabel(self.label, self)
+        self.label.setMinimumWidth(left_pad)
+        self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        if self.toolTip:
+            self.label.setToolTip(self.toolTip)
+        
+        self.lineEdit = QtWidgets.QDoubleSpinBox(self)
+        self.lineEdit.setEnabled(self.enabled)
+        self.lineEdit.setReadOnly(self.readOnly)
+        self.lineEdit.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        
+        upperLayout.addWidget(self.label)
+        upperLayout.addWidget(self.lineEdit)
+        
+        self.setLayout(upperLayout)
+        
+        # Chain signals out with property name and value
+        self.lineEdit.editingFinished.connect(
+            lambda: self.valueChanged.emit(self.label.text(), self.lineEdit.value()))
+    
+    
+    def setValue(self, value):
+        """
+        A clean interface for setting the property value and emitting signals.
+        """
+        self.value = value
+        self.lineEdit.setValue(float(value))
+
+
+class BoolAttrEdit(StringAttrEdit):
+    """
+    An edit widget that is basically a general edit, but also stores the
+    attribute object, dagNode we're associated with, and dag the node is a
+    member of.
+    """
+    
+    
+    def __init__(self, label, value, parent=None, tooltip=None, enabled=True, readOnly=False):
+        """
+        """
+        GeneralEdit.__init__(self,
+                             label=label,
+                             toolTip=tooltip,
+                             enabled=enabled,
+                             readOnly=readOnly,
+                             parent=parent)
+        self.setValue(value)
+    
+    
+    def draw(self):
+        upperLayout = QtWidgets.QHBoxLayout()
+        upperLayout.setContentsMargins(0, 0, 0, 0)
+        # upperLayout.setSpacing(0)
+        
+        self.label = QtWidgets.QLabel(self.label, self)
+        self.label.setMinimumWidth(left_pad)
+        self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignVCenter)
+        if self.toolTip:
+            self.label.setToolTip(self.toolTip)
+        
+        self.lineEdit = QtWidgets.QCheckBox(self)
+        self.lineEdit.setEnabled(self.enabled)
+        self.lineEdit.setEnabled(not self.readOnly)
+        self.lineEdit.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        
+        upperLayout.addWidget(self.label)
+        upperLayout.addWidget(self.lineEdit)
+        
+        self.setLayout(upperLayout)
+        
+        # Chain signals out with property name and value
+        self.lineEdit.stateChanged.connect(
+            lambda: self.valueChanged.emit(self.label.text(), self.lineEdit.isChecked()))
+    
+    
+    def setValue(self, value):
+        """
+        A clean interface for setting the property value and emitting signals.
+        """
+        self.value = value
+        self.lineEdit.setChecked(bool(value))
+
+
 class InfoPanel(QtWidgets.QWidget):
     def __init__(self, parent=None):
         super(InfoPanel, self).__init__(parent)
@@ -17,10 +209,17 @@ class InfoPanel(QtWidgets.QWidget):
         self.build_ui()
     
     
+    def clear(self):
+        # Clear out all existing widgets
+        while self.attrLayout.count():
+            child = self.attrLayout.takeAt(0)
+            if child.widget():
+                child.widget().deleteLater()
+    
+    
     def build_ui(self):
         self.verticalLayout = QtWidgets.QVBoxLayout()
         self.verticalLayout.setContentsMargins(5, 5, 5, 5);
-        
         self.setLayout(self.verticalLayout)
         
         type_lay = QtWidgets.QHBoxLayout()
@@ -32,40 +231,33 @@ class InfoPanel(QtWidgets.QWidget):
         self.type_edit = QtWidgets.QLabel()
         type_lay.addWidget(self.type_edit)
         
-        name_lay = QtWidgets.QHBoxLayout()
-        self.verticalLayout.addLayout(name_lay)
-        name_label = QtWidgets.QLabel("Name")
-        name_lay.addWidget(name_label)
-        self.name_edit = QtWidgets.QLineEdit()
-        self.name_edit.setReadOnly(True)
-        name_lay.addWidget(self.name_edit)
+        self.attrLayout = QtWidgets.QVBoxLayout()
+        self.attrLayout.setContentsMargins(0, 0, 0, 0)
+        self.verticalLayout.addLayout(self.attrLayout)
         
-        path_lay = QtWidgets.QHBoxLayout()
-        self.verticalLayout.addLayout(path_lay)
-        path_label = QtWidgets.QLabel("Path")
-        path_lay.addWidget(path_label)
-        self.path_edit = QtWidgets.QLineEdit()
-        self.path_edit.setReadOnly(True)
-        path_lay.addWidget(self.path_edit)
-        
-        online_lay = QtWidgets.QHBoxLayout()
-        self.verticalLayout.addLayout(online_lay)
-        online_label = QtWidgets.QLabel("Online")
-        online_lay.addWidget(online_label)
-        self.online_edit = QtWidgets.QLineEdit()
-        self.online_edit.setReadOnly(True)
-        online_lay.addWidget(self.online_edit)
-        
-        spacer = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
+        spacer = QtWidgets.QSpacerItem(1, 1, QtWidgets.QSizePolicy.Minimum, QtWidgets.QSizePolicy.Expanding)
         self.verticalLayout.addItem(spacer)
     
     
     def loadData(self, usdfile, info):
+        if self.visibleRegion().isEmpty():
+            # dont bother updating if the widget can't be seen
+            return
+        
+        self.clear()
+        
+        filebase, fileext = os.path.splitext(usdfile)
+        
         self.usdfile = usdfile
         
-        self.name_edit.setText(os.path.basename(self.usdfile))
-        self.online_edit.setText('{}'.format(os.path.isfile(self.usdfile)))
-        self.path_edit.setText(self.usdfile)
+        name_edit = StringAttrEdit('Name', os.path.basename(self.usdfile), readOnly=True)
+        self.attrLayout.addWidget(name_edit)
+        
+        online_edit = BoolAttrEdit('Online', os.path.isfile(self.usdfile), readOnly=True)
+        self.attrLayout.addWidget(online_edit)
+        
+        online_edit = StringAttrEdit('Path', self.usdfile, readOnly=True)
+        self.attrLayout.addWidget(online_edit)
         
         node_icon = "sublayer.png"
         if info.get("type") == 'clip':
@@ -89,8 +281,21 @@ class InfoPanel(QtWidgets.QWidget):
                                   )
         self.type_edit.setText(info.get("type"))
         
-        layer = Sdf.Layer.FindOrOpen(self.usdfile)
-        if not layer:
+        self.attrLayout.addWidget(QHSeperationLine())
+        if info.get("type") == 'variant':
+            variant_set = StringAttrEdit('Variant Set', info.get("variant_set"), readOnly=True)
+            self.attrLayout.addWidget(variant_set)
+            variants = StringAttrEdit('Variants', ','.join(info.get("variants")), readOnly=True)
+            self.attrLayout.addWidget(variants)
+        
+        elif info.get("type") == 'sublayer':
+            specifier = StringAttrEdit('Specifier', info.get("specifier"), readOnly=True)
+            self.attrLayout.addWidget(specifier)
+            
+            info_dict = info.get("info")
+            for key in info_dict:
+                specifier = StringAttrEdit(key, info_dict[key], readOnly=True)
+                self.attrLayout.addWidget(specifier)
+        
+        if not fileext.startswith(".usd"):
             return
-        # print(id, layer.realPath)
-        root = layer.pseudoRoot
