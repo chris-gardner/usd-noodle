@@ -224,7 +224,8 @@ class DependencyWalker(object):
             if child.variantSets:
                 for varset in child.variantSets:
                     # print(varset.name)
-                    variant_path = '{}:{}'.format(layer.realPath, varset.name)
+                    variant_path = '{}:{}'.format(os.path.splitext(layer.realPath)[0], varset.name)
+                    varprim = varset.owner
                     
                     info = {}
                     info['online'] = True
@@ -232,6 +233,7 @@ class DependencyWalker(object):
                     info['type'] = 'variant'
                     info['variant_set'] = varset.name
                     info['variants'] = [str(x) for x in varset.variants.keys()]
+                    info['current_variant'] = varprim.variantSelections[varset.name]
                     
                     self.nodes[variant_path] = info
                     
@@ -590,9 +592,9 @@ class NodeGraphWindow(QtWidgets.QDialog):
         userdata = node.userData
         path = userdata.get('path')
         layer = Sdf.Layer.FindOrOpen(path)
-        
-        win = text_view.TextViewer(input_text=layer.ExportToString(), parent=self)
-        win.show()
+        if layer:
+            win = text_view.TextViewer(input_text=layer.ExportToString(), parent=self)
+            win.show()
     
     
     def view_usdview(self, node_name):
@@ -692,10 +694,6 @@ class NodeGraphWindow(QtWidgets.QDialog):
                         nodeA._pen.setStyle(QtCore.Qt.SolidLine)
                         nodeA._pen.setWidth(5)
                         nodeA._pen.setColor(QtGui.QColor(255, 0, 0))
-                    
-                    if info.get("type") == 'sublayer':
-                        self.nodz.createAttribute(node=nodeA, name='spec: {}'.format(info.get("specifier")),
-                                                  index=0, preset='attr_preset_3', plug=False, socket=False)
                 
                 nds.append(node)
         

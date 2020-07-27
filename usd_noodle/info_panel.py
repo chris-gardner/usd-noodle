@@ -70,8 +70,6 @@ class GeneralEdit(QtWidgets.QWidget):
         self.lineEdit.setText(str(value))
 
 
-###############################################################################
-###############################################################################
 class StringAttrEdit(GeneralEdit):
     """
     An edit widget that is basically a general edit, but also stores the
@@ -144,6 +142,56 @@ class FloatAttrEdit(StringAttrEdit):
         """
         self.value = value
         self.lineEdit.setValue(float(value))
+
+
+class ListAttrEdit(GeneralEdit):
+    """
+    An edit widget that is basically a general edit, but also stores the
+    attribute object, dagNode we're associated with, and dag the node is a
+    member of.
+    """
+    
+    
+    def __init__(self, label, value, parent=None, tooltip=None, enabled=True, readOnly=False):
+        """
+        """
+        GeneralEdit.__init__(self,
+                             label=label,
+                             toolTip=tooltip,
+                             enabled=enabled,
+                             readOnly=readOnly,
+                             parent=parent)
+        self.setValue(value)
+    
+    
+    def draw(self):
+        upperLayout = QtWidgets.QHBoxLayout()
+        upperLayout.setContentsMargins(0, 0, 0, 0)
+        # upperLayout.setSpacing(0)
+        
+        self.label = QtWidgets.QLabel(self.label, self)
+        self.label.setMinimumWidth(left_pad)
+        self.label.setAlignment(QtCore.Qt.AlignRight | QtCore.Qt.AlignTop)
+        if self.toolTip:
+            self.label.setToolTip(self.toolTip)
+        
+        self.lineEdit = QtWidgets.QListWidget(self)
+        self.lineEdit.setEnabled(self.enabled)
+        self.lineEdit.setSizePolicy(QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
+        
+        upperLayout.addWidget(self.label)
+        upperLayout.addWidget(self.lineEdit)
+        
+        self.setLayout(upperLayout)
+    
+    
+    def setValue(self, values):
+        """
+        A clean interface for setting the property value and emitting signals.
+        """
+        self.lineEdit.clear()
+        for val in values:
+            self.lineEdit.addItem(QtWidgets.QListWidgetItem(val))
 
 
 class BoolAttrEdit(StringAttrEdit):
@@ -250,14 +298,11 @@ class InfoPanel(QtWidgets.QWidget):
         
         self.usdfile = usdfile
         
-        name_edit = StringAttrEdit('Name', os.path.basename(self.usdfile), readOnly=True)
-        self.attrLayout.addWidget(name_edit)
+        self.attrLayout.addWidget(StringAttrEdit('Name', os.path.basename(self.usdfile), readOnly=True))
         
-        online_edit = BoolAttrEdit('Online', os.path.isfile(self.usdfile), readOnly=True)
-        self.attrLayout.addWidget(online_edit)
+        self.attrLayout.addWidget(BoolAttrEdit('Online', os.path.isfile(self.usdfile), readOnly=True))
         
-        online_edit = StringAttrEdit('Path', self.usdfile, readOnly=True)
-        self.attrLayout.addWidget(online_edit)
+        self.attrLayout.addWidget(StringAttrEdit('Path', self.usdfile, readOnly=True))
         
         node_icon = "sublayer.png"
         if info.get("type") == 'clip':
@@ -282,21 +327,21 @@ class InfoPanel(QtWidgets.QWidget):
         self.type_edit.setText(info.get("type"))
         
         self.attrLayout.addWidget(QHSeperationLine())
+        
         if info.get("type") == 'variant':
-            variant_set = StringAttrEdit('Variant Set', info.get("variant_set"), readOnly=True)
-            self.attrLayout.addWidget(variant_set)
-            variants = StringAttrEdit('Variants', ','.join(info.get("variants")), readOnly=True)
-            self.attrLayout.addWidget(variants)
+            self.attrLayout.addWidget(StringAttrEdit('Variant Set', info.get("variant_set"), readOnly=True))
+            self.attrLayout.addWidget(StringAttrEdit('Current', info.get("current_variant"), readOnly=True))
+            self.attrLayout.addWidget(ListAttrEdit('Variants',
+                                                   sorted(info.get("variants"), key=lambda x: x.lower()),
+                                                   readOnly=True))
         
         elif info.get("type") == 'sublayer':
-            specifier = StringAttrEdit('Specifier', info.get("specifier"), readOnly=True)
-            self.attrLayout.addWidget(specifier)
-            
+            self.attrLayout.addWidget(StringAttrEdit('Specifier', info.get("specifier"), readOnly=True))
+        
         if 'info' in info:
             info_dict = info.get("info")
             for key in info_dict:
-                specifier = StringAttrEdit(key, info_dict[key], readOnly=True)
-                self.attrLayout.addWidget(specifier)
+                self.attrLayout.addWidget(StringAttrEdit(key, info_dict[key], readOnly=True))
         
         if not fileext.startswith(".usd"):
             return
