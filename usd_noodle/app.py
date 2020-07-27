@@ -78,7 +78,7 @@ class DependencyWalker(object):
         info = {}
         info['online'] = os.path.isfile(layer_path)
         info['path'] = layer_path
-        info['type'] = 'layer'
+        info['type'] = 'sublayer'
         self.nodes[layer_path] = info
         
         self.walkStageLayers(layer_path)
@@ -117,7 +117,19 @@ class DependencyWalker(object):
         
         # print(id, 'children'.center(40, '-'))
         
-        child_list = self.get_flat_child_list(root)
+        # info packet from the root prim
+        if layer_path in self.nodes:
+            info = self.nodes[layer_path]
+            child_list = self.get_flat_child_list(root)
+            info_dict = dict()
+            for key in root.ListInfoKeys():
+                if key in ['subLayers', 'subLayerOffsets']:
+                    continue
+                info_dict[key] = root.GetInfo(key)
+            
+            info['info'] = info_dict
+            info['specifier'] = root.specifier.displayName
+            self.nodes[layer_path] = info
         
         for child in child_list:
             # print(id, child)
@@ -218,6 +230,8 @@ class DependencyWalker(object):
                     info['online'] = True
                     info['path'] = variant_path
                     info['type'] = 'variant'
+                    info['variant_set'] = varset.name
+                    info['variants'] = [str(x) for x in varset.variants.keys()]
                     
                     self.nodes[variant_path] = info
                     
@@ -308,8 +322,6 @@ class DependencyWalker(object):
             info['online'] = os.path.isfile(refpath)
             info['path'] = refpath
             info['type'] = 'sublayer'
-            info['specifier'] = child.specifier.displayName
-            
             self.nodes[refpath] = info
             
             if not [layer_path, refpath, 'sublayer'] in self.edges:
@@ -435,26 +447,12 @@ class NodeGraphWindow(QtWidgets.QDialog):
             self.resize(600, 400)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint)
         
-        self.top_layout = QtWidgets.QHBoxLayout()
-        self.top_layout.setContentsMargins(0, 0, 0, 0);
+        self.top_layout = QtWidgets.QVBoxLayout()
+        # self.top_layout.setContentsMargins(0, 0, 0, 0)
         self.setLayout(self.top_layout)
         
-        splitter = QtWidgets.QSplitter()
-        
-        self.top_layout.addWidget(splitter)
-        
-        main_widget = QtWidgets.QWidget()
-        main_widget.setContentsMargins(0, 0, 0, 0);
-        
-        splitter.addWidget(main_widget)
-        lay = QtWidgets.QVBoxLayout()
-        # lay.setContentsMargins(0, 0, 0, 0);
-        
-        main_widget.setLayout(lay)
-        
-        self.top_layout.addLayout(lay)
         self.toolbar_lay = QtWidgets.QHBoxLayout()
-        lay.addLayout(self.toolbar_lay)
+        self.top_layout.addLayout(self.toolbar_lay)
         
         self.openBtn = QtWidgets.QPushButton("Open...", )
         self.openBtn.setShortcut('Ctrl+o')
@@ -481,8 +479,20 @@ class NodeGraphWindow(QtWidgets.QDialog):
         toolbarspacer = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.toolbar_lay.addItem(toolbarspacer)
         
-        self.info_panel = info_panel.InfoPanel(parent=self)
-        splitter.addWidget(self.info_panel)
+        splitter = QtWidgets.QSplitter()
+        
+        self.top_layout.addWidget(splitter)
+        
+        main_widget = QtWidgets.QWidget()
+        main_widget.setContentsMargins(0, 0, 0, 0)
+        
+        splitter.addWidget(main_widget)
+        lay = QtWidgets.QVBoxLayout()
+        lay.setContentsMargins(0, 0, 0, 0)
+        
+        main_widget.setLayout(lay)
+        
+        self.top_layout.addLayout(lay)
         
         logger.info('building nodes')
         configPath = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'nodz_config.json')
@@ -493,6 +503,12 @@ class NodeGraphWindow(QtWidgets.QDialog):
         lay.addWidget(self.nodz)
         self.nodz.initialize()
         self.nodz.fitInView(-500, -500, 500, 500)
+        
+        info_scroll = QtWidgets.QScrollArea()
+        info_scroll.setWidgetResizable(True)
+        self.info_panel = info_panel.InfoPanel(parent=self)
+        info_scroll.setWidget(self.info_panel)
+        splitter.addWidget(info_scroll)
         
         splitter.setSizes([self.width() * 0.8, self.width() * 0.2])
         
