@@ -394,8 +394,9 @@ class FindNodeWindow(QtWidgets.QDialog):
             return
         
         for x in sorted(self.nodz.scene().nodes):
-            if fnmatch.fnmatch(x.lower(), '*%s*' % search_text.lower()):
-                self.foundNodeList.addItem(QtWidgets.QListWidgetItem(x))
+            this_node = self.nodz.scene().nodes[x]
+            if fnmatch.fnmatch(this_node.label.lower(), '*%s*' % search_text.lower()):
+                self.foundNodeList.addItem(QtWidgets.QListWidgetItem(this_node.label))
     
     
     def item_selected(self, *args):
@@ -405,7 +406,7 @@ class FindNodeWindow(QtWidgets.QDialog):
             
             for x in self.nodz.scene().nodes:
                 node = self.nodz.scene().nodes[x]
-                if x in sel:
+                if node.label in sel:
                     node.setSelected(True)
                 else:
                     node.setSelected(False)
