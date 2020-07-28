@@ -7,18 +7,33 @@ Pretty node graph showing dependencies of a USD file
 
 Make sure you clone with submodules. Like this:
 
-`git clone --recursive https://github.com/chris-gardner/usd-dependency-graph.git`
+```
+cd /path/to/usd-noodle
+git clone --recursive https://github.com/chris-gardner/usd-dependency-graph.git
+```
 
-# Running
+# Running from inside a DCC
+
+For example, Houdini, which provides the USD libraries and PySide2 out of the box.
 
 Make the usd-noodle directory is on your PYTHONPATH:
 
 ```
+import sys
+sys.path.append('/path/to/usd-noodle')
 import usd_noodle
 usd_noodle.main()
 ```
 
+# Running from a commandline
+Assuming you have a USD installation at $USD...
 
-## Notes on using the USD python API
-[USD python notes](https://github.com/chris-gardner/usd-dependency-graph/wiki/USD-python-notes)
+$PYTHONPATH will require $USD/lib/python along with some flavour of PyQt/PySide
+
+$PATH will require $USD/lib and $USD/bin
+
+```
+python /path/to/usd-noodle/usd_noodle/app.py
+```
+
 
