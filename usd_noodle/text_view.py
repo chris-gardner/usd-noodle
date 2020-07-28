@@ -38,6 +38,7 @@ class TextViewer(QtWidgets.QDialog):
         self.editor.setFont(font)
         self.editor.setTabStopWidth(40)
         self.editor.setLineWrapMode(QtWidgets.QPlainTextEdit.NoWrap)
+        self.editor.setReadOnly(True)
         
         self.verticalLayout.addWidget(self.editor)
         
