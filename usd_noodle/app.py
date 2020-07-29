@@ -23,7 +23,7 @@ import text_view
 import info_panel
 
 
-reload(info_panel)
+# reload(info_panel)
 
 import re
 from pprint import pprint
@@ -242,14 +242,14 @@ class DependencyWalker(object):
                     
                     for variant_name in varset.variants.keys():
                         variant = varset.variants[variant_name]
-                        payloadList = variant.primSpec.payloadList
-                        
+
                         # so variants can host payloads and references
                         # we get to these through the variants primspec
                         # and then add them to our list of paths to inspect
-                        for primspec in self.get_flat_child_list(variant.primSpec):
-                            payloadList = self.flatten_ref_list(primspec.payloadList)
-                            for payload in payloadList:
+                        
+                        for primspec_child in self.get_flat_child_list(variant.primSpec):
+
+                            for payload in self.flatten_ref_list(primspec_child.payloadList):
                                 pathToResolve = payload.assetPath
                                 if pathToResolve:
                                     refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, pathToResolve)
@@ -264,9 +264,8 @@ class DependencyWalker(object):
                                     
                                     if not [variant_path, refpath, variant_name] in self.edges:
                                         self.edges.append([variant_path, refpath, variant_name])
-                            
-                            referenceList = self.flatten_ref_list(child.referenceList)
-                            for reference in referenceList:
+
+                            for reference in self.flatten_ref_list(primspec_child.referenceList):
                                 pathToResolve = reference.assetPath
                                 if pathToResolve:
                                     refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, pathToResolve)
@@ -447,7 +446,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         if self.settings.value("geometry"):
             self.restoreGeometry(self.settings.value("geometry"))
         else:
-            self.resize(600, 400)
+            self.resize(1024, 1024)
         self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint)
         
         self.top_layout = QtWidgets.QVBoxLayout()
@@ -741,9 +740,16 @@ class NodeGraphWindow(QtWidgets.QDialog):
             startPath = os.path.dirname(self.usdfile)
         
         multipleFilters = "USD Files (*.usd *.usda *.usdc) (*.usd *.usda *.usdc);;All Files (*.*) (*.*)"
+        options = QtWidgets.QFileDialog.DontUseNativeDialog
+        try:
+            # qt 5.2 and up
+            options = options | QtWidgets.QFileDialog.DontUseCustomDirectoryIcons
+        except:
+            pass
+        
         filename = QtWidgets.QFileDialog.getOpenFileName(
-            QtWidgets.QApplication.activeWindow(), 'Open File', startPath or '/', multipleFilters,
-            None, QtWidgets.QFileDialog.DontUseNativeDialog)
+            self, 'Open File', startPath or '/', multipleFilters,
+            None, options)
         if filename[0]:
             print(filename[0])
             self.usdfile = filename[0]
@@ -762,8 +768,6 @@ class NodeGraphWindow(QtWidgets.QDialog):
 
 
 def main(usdfile=None):
-    # usdfile = utils.sanitize_path(usdfile)
-    # usdfile = usdfile.encode('unicode_escape')
     
     par = QtWidgets.QApplication.activeWindow()
     win = NodeGraphWindow(usdfile=usdfile, parent=par)
