@@ -9,7 +9,7 @@ Make sure you clone with submodules. Like this:
 
 ```
 cd /path/to/usd-noodle
-git clone --recursive https://github.com/chris-gardner/usd-dependency-graph.git
+git clone --recursive https://github.com/chris-gardner/usd-noodle.git
 ```
 
 # Running from inside a DCC
