@@ -2,6 +2,7 @@ from __future__ import print_function
 import logging
 import os.path
 import sys
+import argparse
 
 import random
 import fnmatch
@@ -21,6 +22,7 @@ import utils
 from vendor.Nodz import nodz_main
 import text_view
 import info_panel
+
 
 try:
     # reload(info_panel)
@@ -111,7 +113,13 @@ class DependencyWalker(object):
         if self.resolver.IsRelativePath(path):
             return self.resolver.AnchorRelativePath(layer.realPath, path)
         else:
-            return self.resolver.Resolve(path)
+            resolved = self.resolver.Resolve(path)
+            if resolved:
+                return resolved
+            else:
+                # resolver will return None on invalid paths
+                # we still want the path regardless
+                return path
     
     
     def walkStageLayers(self, layer_path, level=1):
@@ -439,7 +447,7 @@ class FindNodeWindow(QtWidgets.QDialog):
 
 
 class NodeGraphWindow(QtWidgets.QDialog):
-    def __init__(self, usdfile=None, parent=None):
+    def __init__(self, usdfile=None, walk_attributes=False, parent=None):
         self.usdfile = usdfile
         self.root_node = None
         
@@ -447,20 +455,24 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.settings = QtCore.QSettings("chrisg", "usd-noodle")
         self.setWindowTitle("Noodle")
         self.nodz = None
+        self.walk_attributes = walk_attributes
         
         self.find_win = None
         self.build_ui()
         if self.usdfile:
             self.load_file()
     
-    
+    def loadTextChkChanged(self, state):
+        self.walk_attributes = self.loadTextChk.isChecked()
+        
     def build_ui(self):
         
         if self.settings.value("geometry"):
             self.restoreGeometry(self.settings.value("geometry"))
         else:
             self.resize(1024, 1024)
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint | QtCore.Qt.WindowMaximizeButtonHint)
+        self.setWindowFlags(
+            self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint | QtCore.Qt.WindowMaximizeButtonHint)
         
         self.top_layout = QtWidgets.QVBoxLayout()
         # self.top_layout.setContentsMargins(0, 0, 0, 0)
@@ -480,6 +492,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.toolbar_lay.addWidget(self.reloadBtn)
         
         self.loadTextChk = QtWidgets.QCheckBox("Load Textures")
+        self.loadTextChk.setChecked(self.walk_attributes)
+        self.loadTextChk.stateChanged.connect(self.loadTextChkChanged)
         self.toolbar_lay.addWidget(self.loadTextChk)
         
         self.findBtn = QtWidgets.QPushButton("Find...")
@@ -642,7 +656,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.setWindowTitle('Noodle - '.format(self.usdfile))
         
         x = DependencyWalker(self.usdfile)
-        x.walk_attributes = self.loadTextChk.isChecked()
+        x.walk_attributes = self.walk_attributes
         x.start()
         
         # get back the scrubbed initial file path
@@ -780,14 +794,20 @@ class NodeGraphWindow(QtWidgets.QDialog):
         super(NodeGraphWindow, self).closeEvent(event)
 
 
-def main(usdfile=None):
+def main(usdfile=None, walk_attributes=False):
     par = QtWidgets.QApplication.activeWindow()
-    win = NodeGraphWindow(usdfile=usdfile, parent=par)
+    win = NodeGraphWindow(usdfile=usdfile, parent=par, walk_attributes=walk_attributes)
     win.show()
     return win
 
 
 if __name__ == "__main__":
+    parser = argparse.ArgumentParser()
+    
+    parser.add_argument('-i', '--usdfile')
+    parser.add_argument('-t', '--textures', action='store_true')
+    args = parser.parse_args()
+
     app = QtWidgets.QApplication(sys.argv)
-    win = main()
+    win = main(args.usdfile, walk_attributes=args.textures)
     sys.exit(app.exec_())
