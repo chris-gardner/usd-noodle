@@ -22,9 +22,12 @@ from vendor.Nodz import nodz_main
 import text_view
 import info_panel
 
+try:
+    # reload(info_panel)
+    reload(nodz_main)
+except:
+    pass
 
-# reload(info_panel)
-reload(nodz_main)
 import re
 from pprint import pprint
 
@@ -442,7 +445,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         super(NodeGraphWindow, self).__init__(parent)
         self.settings = QtCore.QSettings("chrisg", "usd-noodle")
-        
+        self.setWindowTitle("Noodle")
         self.nodz = None
         
         self.find_win = None
@@ -457,7 +460,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
             self.restoreGeometry(self.settings.value("geometry"))
         else:
             self.resize(1024, 1024)
-        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint)
+        self.setWindowFlags(self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint | QtCore.Qt.WindowMaximizeButtonHint)
         
         self.top_layout = QtWidgets.QVBoxLayout()
         # self.top_layout.setContentsMargins(0, 0, 0, 0)
@@ -636,7 +639,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         self.nodz.clearGraph()
         self.root_node = None
-        self.setWindowTitle(self.usdfile)
+        self.setWindowTitle('Noodle - '.format(self.usdfile))
         
         x = DependencyWalker(self.usdfile)
         x.walk_attributes = self.loadTextChk.isChecked()
