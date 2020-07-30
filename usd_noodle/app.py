@@ -462,15 +462,19 @@ class NodeGraphWindow(QtWidgets.QDialog):
         if self.usdfile:
             self.load_file()
     
+    
     def loadTextChkChanged(self, state):
         self.walk_attributes = self.loadTextChk.isChecked()
-        
+    
+    
     def build_ui(self):
         
         if self.settings.value("geometry"):
             self.restoreGeometry(self.settings.value("geometry"))
         else:
-            self.resize(1024, 1024)
+            sizeObject = QtWidgets.QDesktopWidget().screenGeometry(-1)
+            self.resize(sizeObject.width() * 0.8, sizeObject.height() * 0.8)
+        
         self.setWindowFlags(
             self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint | QtCore.Qt.WindowMaximizeButtonHint)
         
@@ -807,7 +811,7 @@ if __name__ == "__main__":
     parser.add_argument('-i', '--usdfile')
     parser.add_argument('-t', '--textures', action='store_true')
     args = parser.parse_args()
-
+    
     app = QtWidgets.QApplication(sys.argv)
     win = main(args.usdfile, walk_attributes=args.textures)
     sys.exit(app.exec_())
