@@ -24,7 +24,7 @@ import info_panel
 
 
 # reload(info_panel)
-
+reload(nodz_main)
 import re
 from pprint import pprint
 
@@ -54,6 +54,9 @@ class DependencyWalker(object):
         logger.info('Loading usd file: {}'.format(self.usdfile))
         self.nodes = {}
         self.edges = []
+        
+        self.resolver = Ar.GetResolver()
+        self.resolver.ConfigureResolverForAsset(usdfile)
         
         self.visited_nodes = []
     
@@ -99,6 +102,13 @@ class DependencyWalker(object):
             for payload in itemlist:
                 ret.append(payload)
         return list(set(ret))
+    
+    
+    def resolve(self, layer, path):
+        if self.resolver.IsRelativePath(path):
+            return self.resolver.AnchorRelativePath(layer.realPath, path)
+        else:
+            return self.resolver.Resolve(path)
     
     
     def walkStageLayers(self, layer_path, level=1):
@@ -147,7 +157,7 @@ class DependencyWalker(object):
                         if not value.path:
                             continue
                         
-                        resolved_path = Sdf.ComputeAssetPathRelativeToLayer(layer, value.path)
+                        resolved_path = self.resolve(layer, value.path)
                         info = {}
                         info['online'] = os.path.isfile(resolved_path)
                         info['path'] = resolved_path
@@ -196,7 +206,7 @@ class DependencyWalker(object):
                 
                 allFilesFound = True
                 for path in clip_asset_paths:
-                    clip_path = Sdf.ComputeAssetPathRelativeToLayer(layer, path.path)
+                    clip_path = self.resolve(layer, path.path)
                     if not os.path.isfile(clip_path):
                         allFilesFound = False
                         break
@@ -205,8 +215,8 @@ class DependencyWalker(object):
                 # TODO: validate presence of all files in the clip seq. bg thread?
                 
                 manifestPath = clip_set.get("manifestAssetPath")
-                refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, clip_asset_paths[0].path)
-                clipmanifest_path = Sdf.ComputeAssetPathRelativeToLayer(layer, manifestPath.path)
+                refpath = self.resolve(layer, clip_asset_paths[0].path)
+                clipmanifest_path = self.resolve(layer, manifestPath.path)
                 
                 info = {}
                 info['online'] = allFilesFound
@@ -242,17 +252,17 @@ class DependencyWalker(object):
                     
                     for variant_name in varset.variants.keys():
                         variant = varset.variants[variant_name]
-
+                        
                         # so variants can host payloads and references
                         # we get to these through the variants primspec
                         # and then add them to our list of paths to inspect
                         
                         for primspec_child in self.get_flat_child_list(variant.primSpec):
-
+                            
                             for payload in self.flatten_ref_list(primspec_child.payloadList):
                                 pathToResolve = payload.assetPath
                                 if pathToResolve:
-                                    refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, pathToResolve)
+                                    refpath = self.resolve(layer, pathToResolve)
                                     payloads.append(refpath)
                                     
                                     info = {}
@@ -264,11 +274,11 @@ class DependencyWalker(object):
                                     
                                     if not [variant_path, refpath, variant_name] in self.edges:
                                         self.edges.append([variant_path, refpath, variant_name])
-
+                            
                             for reference in self.flatten_ref_list(primspec_child.referenceList):
                                 pathToResolve = reference.assetPath
                                 if pathToResolve:
-                                    refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, pathToResolve)
+                                    refpath = self.resolve(layer, pathToResolve)
                                     references.append(refpath)
                                     
                                     info = {}
@@ -285,7 +295,7 @@ class DependencyWalker(object):
             for payload in payloadList:
                 pathToResolve = payload.assetPath
                 if pathToResolve:
-                    refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, pathToResolve)
+                    refpath = self.resolve(layer, pathToResolve)
                     payloads.append(refpath)
                     
                     info = {}
@@ -302,7 +312,7 @@ class DependencyWalker(object):
             for reference in referenceList:
                 pathToResolve = reference.assetPath
                 if pathToResolve:
-                    refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, pathToResolve)
+                    refpath = self.resolve(layer, pathToResolve)
                     references.append(refpath)
                     
                     info = {}
@@ -316,7 +326,7 @@ class DependencyWalker(object):
                         self.edges.append([layer_path, refpath, 'reference'])
         
         for rel_sublayer in layer.subLayerPaths:
-            refpath = Sdf.ComputeAssetPathRelativeToLayer(layer, rel_sublayer)
+            refpath = self.resolve(layer, rel_sublayer)
             sublayers.append(refpath)
             
             info = {}
@@ -566,13 +576,13 @@ class NodeGraphWindow(QtWidgets.QDialog):
             pltName = platform.system()
             if pltName == 'Windows':
                 browsePath = browsePath.replace('/', '\\')
-                os.system("explorer.exe /select,%s" % (browsePath))
+                os.system("start explorer.exe /select,{}".format(browsePath))
             
             elif pltName == 'Darwin':
-                os.system('open -R "%s"' % browsePath)
+                os.system('open -R "{}"'.format(browsePath))
             
             elif pltName == 'Linux':
-                os.system('xdg-open "%s"' % os.path.dirname(browsePath))
+                os.system('xdg-open "{}"'.format(os.path.dirname(browsePath)))
     
     
     def node_upstream(self, node_name):
@@ -768,7 +778,6 @@ class NodeGraphWindow(QtWidgets.QDialog):
 
 
 def main(usdfile=None):
-    
     par = QtWidgets.QApplication.activeWindow()
     win = NodeGraphWindow(usdfile=usdfile, parent=par)
     win.show()
