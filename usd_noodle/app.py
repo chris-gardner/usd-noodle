@@ -808,8 +808,8 @@ def main(usdfile=None, walk_attributes=False):
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     
-    parser.add_argument('-i', '--usdfile')
-    parser.add_argument('-t', '--textures', action='store_true')
+    parser.add_argument('-i', '--usdfile', help='usd file to load')
+    parser.add_argument('-t', '--textures', action='store_true', help="Load textures (ie, walk attributes)")
     args = parser.parse_args()
     
     app = QtWidgets.QApplication(sys.argv)

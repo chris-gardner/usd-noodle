@@ -25,6 +25,9 @@ import usd_noodle
 usd_noodle.main()
 ```
 
+## Houdini
+Don't attempt to run it from the script editor. Make a shelf button. You will cry less.
+
 # Running from a commandline
 Assuming you have a USD installation at $USD...
 
@@ -36,4 +39,13 @@ $PATH will require $USD/lib and $USD/bin
 python /path/to/usd-noodle/usd_noodle/app.py
 ```
 
-
+## Arguments:
+```
+usage: app.py [-h] [-i USDFILE] [-t]
+   
+optional arguments:
+  -h, --help            show this help message and exit
+  -i USDFILE, --usdfile USDFILE
+                        usd file to load
+  -t, --textures        Load textures (ie, walk attributes)
+```
