@@ -548,6 +548,66 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.nodz.signal_NodeMoved.connect(self.on_nodeMoved)
         self.nodz.signal_NodeSelected.connect(self.on_nodeSelected)
         self.nodz.signal_NodeContextMenuEvent.connect(self.node_context_menu)
+        self.nodz.signal_KeyPressed.connect(self.on_keyPressed)
+    
+    
+    def on_keyPressed(self, key):
+        if not self.nodz.scene().selectedItems():
+            return
+        
+        sel = self.nodz.scene().selectedItems()[0]
+        for node in self.nodz.scene().selectedItems():
+            node.setSelected(False)
+        
+        if key == QtCore.Qt.Key_Up:
+            plug_names = list(sel.plugs.keys())
+            if plug_names:
+                plug = plug_names[0]
+                for i, conn in enumerate(sel.plugs[plug].connections):
+                    parent_node = self.nodz.scene().nodes[conn.socketNode]
+                    parent_node.setSelected(True)
+                    break
+        
+        elif key == QtCore.Qt.Key_Down:
+            socket_names = list(sel.sockets.keys())
+            if socket_names:
+                socket = socket_names[0]
+                for i, conn in enumerate(sel.sockets[socket].connections):
+                    child_node = self.nodz.scene().nodes[conn.plugNode]
+                    child_node.setSelected(True)
+                    break
+        
+        
+        elif key == QtCore.Qt.Key_Left:
+            plug_names = list(sel.plugs.keys())
+            if plug_names:
+                plug = plug_names[0]
+                for i, conn in enumerate(sel.plugs[plug].connections):
+                    siblings = []
+                    for par_conn in conn.socketItem.connections:
+                        siblings.append(par_conn.plugNode)
+                    cur_index = siblings.index(sel.name)
+                    if cur_index == 0:
+                        return
+                    sibling = siblings[cur_index - 1]
+                    child_node = self.nodz.scene().nodes[sibling]
+                    child_node.setSelected(True)
+        
+        
+        elif key == QtCore.Qt.Key_Right:
+            plug_names = list(sel.plugs.keys())
+            if plug_names:
+                plug = plug_names[0]
+                for i, conn in enumerate(sel.plugs[plug].connections):
+                    siblings = []
+                    for par_conn in conn.socketItem.connections:
+                        siblings.append(par_conn.plugNode)
+                    cur_index = siblings.index(sel.name)
+                    if cur_index == len(siblings) - 1:
+                        return
+                    sibling = siblings[cur_index + 1]
+                    child_node = self.nodz.scene().nodes[sibling]
+                    child_node.setSelected(True)
     
     
     def on_nodeMoved(self, nodeName, nodePos):
@@ -812,6 +872,8 @@ if __name__ == "__main__":
     parser.add_argument('-t', '--textures', action='store_true', help="Load textures (ie, walk attributes)")
     args = parser.parse_args()
     
+    print(os.getenv("PATH"))
+    print(os.getenv("PYTHONPATH"))
     app = QtWidgets.QApplication(sys.argv)
     win = main(args.usdfile, walk_attributes=args.textures)
     sys.exit(app.exec_())
