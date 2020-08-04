@@ -555,9 +555,9 @@ class NodeGraphWindow(QtWidgets.QDialog):
         if not self.nodz.scene().selectedItems():
             return
         
-        sel = self.nodz.scene().selectedItems()[0]
-        for node in self.nodz.scene().selectedItems():
-            node.setSelected(False)
+        original_sel = self.nodz.scene().selectedItems()
+        sel = original_sel[0]
+        clear_selection = False
         
         if key == QtCore.Qt.Key_Up:
             plug_names = list(sel.plugs.keys())
@@ -566,6 +566,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 for i, conn in enumerate(sel.plugs[plug].connections):
                     parent_node = self.nodz.scene().nodes[conn.socketNode]
                     parent_node.setSelected(True)
+                    clear_selection = True
                     break
         
         elif key == QtCore.Qt.Key_Down:
@@ -575,6 +576,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 for i, conn in enumerate(sel.sockets[socket].connections):
                     child_node = self.nodz.scene().nodes[conn.plugNode]
                     child_node.setSelected(True)
+                    clear_selection = True
                     break
         
         
@@ -592,6 +594,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                     sibling = siblings[cur_index - 1]
                     child_node = self.nodz.scene().nodes[sibling]
                     child_node.setSelected(True)
+                    clear_selection = True
         
         
         elif key == QtCore.Qt.Key_Right:
@@ -608,6 +611,11 @@ class NodeGraphWindow(QtWidgets.QDialog):
                     sibling = siblings[cur_index + 1]
                     child_node = self.nodz.scene().nodes[sibling]
                     child_node.setSelected(True)
+                    clear_selection = True
+        
+        if clear_selection:
+            for node in original_sel:
+                node.setSelected(False)
     
     
     def on_nodeMoved(self, nodeName, nodePos):
