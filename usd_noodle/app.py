@@ -203,8 +203,15 @@ class DependencyWalker(object):
                 # don't use resolved path in case either the first or last file is missing from disk
                 firstFile = str(clip_asset_paths[0].path)
                 lastFile = str(clip_asset_paths[-1].path)
-                firstFileNum = digitSearch.findall(firstFile)[-1]
-                lastFileNum = digitSearch.findall(lastFile)[-1]
+                if digitSearch.findall(firstFile):
+                    firstFileNum = digitSearch.findall(firstFile)[-1]
+                else:
+                    firstFileNum = '???'
+                
+                if digitSearch.findall(lastFile):
+                    lastFileNum = digitSearch.findall(lastFile)[-1]
+                else:
+                    lastFileNum = '???'
                 digitRange = str(firstFileNum + '-' + lastFileNum)
                 nodeName = ''
                 
