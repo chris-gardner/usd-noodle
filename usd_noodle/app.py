@@ -150,6 +150,10 @@ class DependencyWalker(object):
             
             info['info'] = info_dict
             info['specifier'] = root.specifier.displayName
+            info['muted'] = layer.IsMuted()
+            info['defaultPrim'] = layer.defaultPrim
+            info['PseudoRoot'] = layer.pseudoRoot.name
+            info['RootPrims'] = [x.path.GetPrimPath().pathString for x in layer.rootPrims]
             self.nodes[layer_path] = info
         
         for child in child_list:
@@ -240,6 +244,8 @@ class DependencyWalker(object):
                 info['online'] = allFilesFound
                 info['path'] = refpath
                 info['type'] = 'clip'
+                info['primPath'] = clip_set.get("primPath")
+                info['clipSet'] = clip_set_name
                 
                 self.nodes[nodeName] = info
                 
@@ -377,24 +383,6 @@ class DependencyWalker(object):
             logger.debug((id, payloads))
         for payload in payloads:
             self.walkStageLayers(payload, level=level + 1)
-    
-    
-    def layerprops(self, layer):
-        print('layer props'.center(40, '-'))
-        
-        for prop in ['anonymous', 'colorConfiguration', 'colorManagementSystem', 'comment', 'customLayerData',
-                     'defaultPrim', 'dirty', 'documentation', 'empty', 'endTimeCode', 'expired', 'externalReferences',
-                     'fileExtension', 'framePrecision',
-                     'framesPerSecond', 'hasOwnedSubLayers', 'identifier', 'owner', 'permissionToEdit',
-                     'permissionToSave', 'pseudoRoot', 'realPath', 'repositoryPath', 'rootPrimOrder', 'rootPrims',
-                     'sessionOwner', 'startTimeCode', 'subLayerOffsets', 'subLayerPaths', 'timeCodesPerSecond',
-                     'version']:
-            prop, getattr(layer, prop)
-        print(''.center(40, '-'))
-        
-        defaultprim = layer.defaultPrim
-        if defaultprim:
-            defaultprim, type(defaultprim)
 
 
 def find_node(node_coll, attr_name, attr_value):
@@ -555,10 +543,10 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.nodz.signal_NodeMoved.connect(self.on_nodeMoved)
         self.nodz.signal_NodeSelected.connect(self.on_nodeSelected)
         self.nodz.signal_NodeContextMenuEvent.connect(self.node_context_menu)
-        self.nodz.signal_KeyPressed.connect(self.on_keyPressed)
+        self.nodz.signal_KeyPressed.connect(self.pickwalk)
     
     
-    def on_keyPressed(self, key):
+    def pickwalk(self, key):
         if not self.nodz.scene().selectedItems():
             return
         
@@ -566,7 +554,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         sel = original_sel[0]
         clear_selection = False
         
-        if key == QtCore.Qt.Key_Up:
+        if key == QtCore.Qt.Key_Right:
             plug_names = list(sel.plugs.keys())
             if plug_names:
                 plug = plug_names[0]
@@ -576,7 +564,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                     clear_selection = True
                     break
         
-        elif key == QtCore.Qt.Key_Down:
+        elif key == QtCore.Qt.Key_Left:
             socket_names = list(sel.sockets.keys())
             if socket_names:
                 socket = socket_names[0]
@@ -587,7 +575,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                     break
         
         
-        elif key == QtCore.Qt.Key_Left:
+        elif key == QtCore.Qt.Key_Up:
             plug_names = list(sel.plugs.keys())
             if plug_names:
                 plug = plug_names[0]
@@ -604,7 +592,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                     clear_selection = True
         
         
-        elif key == QtCore.Qt.Key_Right:
+        elif key == QtCore.Qt.Key_Down:
             plug_names = list(sel.plugs.keys())
             if plug_names:
                 plug = plug_names[0]
@@ -717,10 +705,14 @@ class NodeGraphWindow(QtWidgets.QDialog):
     def node_context_menu(self, event, node):
         menu = QtWidgets.QMenu()
         menu.addAction("Copy Node Path", partial(self.node_path, node))
-        menu.addAction("Reveal in filesystem", partial(self.reveal_file, node))
-        menu.addAction("Inspect layer...", partial(self.view_usdfile, node))
-        menu.addAction("UsdView...", partial(self.view_usdview, node))
         menu.addAction("Select upstream", partial(self.node_upstream, node))
+        menu.addAction("Reveal in filesystem", partial(self.reveal_file, node))
+        
+        usd_submenu = menu.addMenu("USD")
+        usd_submenu.addAction("Inspect layer...", partial(self.view_usdfile, node))
+        usd_submenu.addAction("UsdView...", partial(self.view_usdview, node))
+        
+        tex_submenu = menu.addMenu("Texture")
         
         menu.exec_(event.globalPos())
     

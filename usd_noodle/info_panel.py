@@ -355,15 +355,19 @@ class InfoPanel(QtWidgets.QWidget):
         
         self.attrLayout.addWidget(StringAttrEdit('Name', os.path.basename(self.usdfile), readOnly=True))
         
-        file_online = os.path.isfile(self.usdfile)
-        self.attrLayout.addWidget(BoolAttrEdit('Online', file_online, readOnly=True))
-        
-        if file_online:
-            self.attrLayout.addWidget(StringAttrEdit('Size',
-                                                     '{:.2f}mb'.format(os.path.getsize(self.usdfile) / 1024.0 / 1024.0),
-                                                     readOnly=True))
-        
-        self.attrLayout.addWidget(StringAttrEdit('Path', self.usdfile, readOnly=True))
+        # some node types don't represent files
+        non_file_nodes = ['clip', 'variant']
+        if not info.get("type") in non_file_nodes:
+            file_online = os.path.isfile(self.usdfile)
+            self.attrLayout.addWidget(BoolAttrEdit('Online', file_online, readOnly=True))
+            
+            if file_online:
+                self.attrLayout.addWidget(
+                    StringAttrEdit('Size', '{:.2f}mb'.format(os.path.getsize(self.usdfile) / 1024.0 / 1024.0),
+                                   readOnly=True)
+                )
+            
+            self.attrLayout.addWidget(StringAttrEdit('Path', self.usdfile, readOnly=True))
         
         node_icon = "sublayer.png"
         if info.get("type") == 'clip':
@@ -396,10 +400,24 @@ class InfoPanel(QtWidgets.QWidget):
                                                    sorted(info.get("variants"), key=lambda x: x.lower()),
                                                    readOnly=True))
         
+        if info.get("type") == 'tex':
+            self.attrLayout.addWidget(StringAttrEdit('colorspace', info.get("colorspace"), readOnly=True))
+        
+        if info.get("type") == 'clip':
+            self.attrLayout.addWidget(StringAttrEdit('clipSet', info.get("clipSet"), readOnly=True))
+            self.attrLayout.addWidget(StringAttrEdit('primPath', info.get("primPath"), readOnly=True))
+        
         elif info.get("type") == 'sublayer':
-            self.attrLayout.addWidget(StringAttrEdit('Specifier', info.get("specifier"), readOnly=True))
+            self.attrLayout.addWidget(StringAttrEdit('specifier', info.get("specifier"), readOnly=True))
+            self.attrLayout.addWidget(StringAttrEdit('defaultPrim', info.get("defaultPrim"), readOnly=True))
+            self.attrLayout.addWidget(StringAttrEdit('PseudoRoot', info.get("PseudoRoot"), readOnly=True))
+            self.attrLayout.addWidget(BoolAttrEdit('muted', info.get("muted"), readOnly=True))
+        
+        if 'RootPrims' in info:
+            self.attrLayout.addWidget(StringAttrEdit('RootPrims', ','.join(info.get("RootPrims")), readOnly=True))
         
         if 'info' in info:
+            self.attrLayout.addWidget(QHSeperationLine())
             info_dict = info.get("info")
             for key in info_dict:
                 if key in ['comment', 'doc', 'documentation']:
