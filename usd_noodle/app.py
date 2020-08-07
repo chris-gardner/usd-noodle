@@ -763,7 +763,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
                 nodeA = self.nodz.createNode(name=node, label=node_label, preset=node_preset, position=pos)
                 if self.usdfile == node:
                     self.root_node = nodeA
-                    node_icon = "hamburger.png"
+                    node_icon = "noodle.png"
                 
                 icon = QtGui.QIcon(os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons", node_icon))
                 nodeA.icon = icon
