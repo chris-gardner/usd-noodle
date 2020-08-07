@@ -3,6 +3,14 @@ Pretty node graph showing dependencies of a USD file
 
 ![Screenshot](docs/usd_noodle_screenshot.png)
 
+
+## Requirements
+
+* Python 2.7 or 3.x
+* USD build (19.x or later) for your python version
+* PySide2 or PyQt5
+
+
 ## Cloning
 
 Make sure you clone with submodules. Like this:
@@ -12,7 +20,7 @@ cd /path/to/usd-noodle
 git clone --recursive https://github.com/chris-gardner/usd-noodle.git
 ```
 
-# Running from inside a DCC
+## Running from inside a DCC
 
 For example, Houdini, which provides the USD libraries and PySide2 out of the box.
 
@@ -25,10 +33,10 @@ import usd_noodle
 usd_noodle.main()
 ```
 
-## Houdini
+### Houdini
 Don't attempt to run it from the script editor. Make a shelf button. You will cry less.
 
-# Running from a commandline
+## Running from a commandline
 Assuming you have a USD installation at $USD...
 
 $PYTHONPATH will require $USD/lib/python along with some flavour of PyQt/PySide
