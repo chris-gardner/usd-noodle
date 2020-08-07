@@ -13,8 +13,6 @@ import sys
 import platform
 
 
-sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), 'vendor'))
-
 from Qt import QtCore, QtWidgets, QtGui
 from pxr import Usd, Sdf, Ar, UsdUtils
 
@@ -23,12 +21,6 @@ from vendor.Nodz import nodz_main
 import text_view
 import info_panel
 
-
-try:
-    # reload(info_panel)
-    reload(nodz_main)
-except:
-    pass
 
 import re
 from pprint import pprint
@@ -871,16 +863,3 @@ def main(usdfile=None, walk_attributes=False):
     win.show()
     return win
 
-
-if __name__ == "__main__":
-    parser = argparse.ArgumentParser()
-    
-    parser.add_argument('-i', '--usdfile', help='usd file to load')
-    parser.add_argument('-t', '--textures', action='store_true', help="Load textures (ie, walk attributes)")
-    args = parser.parse_args()
-    
-    print(os.getenv("PATH"))
-    print(os.getenv("PYTHONPATH"))
-    app = QtWidgets.QApplication(sys.argv)
-    win = main(args.usdfile, walk_attributes=args.textures)
-    sys.exit(app.exec_())
