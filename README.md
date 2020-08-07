@@ -35,8 +35,17 @@ $PYTHONPATH will require $USD/lib/python along with some flavour of PyQt/PySide
 
 $PATH will require $USD/lib and $USD/bin
 
+here's a sample bash script. PySide2 has already been installed to the python installation.
 ```
-python /path/to/usd-noodle/usd_noodle/app.py
+#!/bin/bash
+
+export USD=/home/chrisg/usd-20.05-linux-x86_64-py36
+export NOODLE=/home/chrisg/usd-noodle
+
+export PYTHONPATH=$PYTHONPATH:$USD/lib/python::
+export PATH=$PATH:$USD/lib:$USD/bin:
+
+python3 $NOODLE/usd_noodle/
 ```
 
 ## Arguments:
