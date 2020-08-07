@@ -1,5 +1,4 @@
-# usd-noodle
-![Screenshot](docs/noodle_icon_64.png)
+#  ![Screenshot](docs/noodle_icon_64.png) usd-noodle
 
 Pretty node graph showing dependencies of a USD file
 
