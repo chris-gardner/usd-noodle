@@ -472,6 +472,17 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.toolbar_lay = QtWidgets.QHBoxLayout()
         self.top_layout.addLayout(self.toolbar_lay)
         
+        
+        noodle_label = QtWidgets.QLabel()
+        icon = QtGui.QPixmap()
+        icon.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons", 'noodle.png'))
+        noodle_label.setPixmap(icon.scaled(32, 32,
+                                              QtCore.Qt.KeepAspectRatio,
+                                              QtCore.Qt.SmoothTransformation)
+                                  )
+
+        self.toolbar_lay.addWidget(noodle_label)
+        
         self.openBtn = QtWidgets.QPushButton("Open...", )
         self.openBtn.setShortcut('Ctrl+o')
         self.openBtn.clicked.connect(self.manualOpen)
