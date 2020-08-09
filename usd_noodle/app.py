@@ -12,7 +12,6 @@ import threading
 import sys
 import platform
 
-
 from Qt import QtCore, QtWidgets, QtGui
 from pxr import Usd, Sdf, Ar, UsdUtils
 
@@ -20,7 +19,6 @@ import utils
 from vendor.Nodz import nodz_main
 import text_view
 import info_panel
-
 
 import re
 from pprint import pprint
@@ -249,7 +247,7 @@ class DependencyWalker(object):
             
             if child.variantSets:
                 for varset in child.variantSets:
-                    # print(varset.name)
+                    # print(child, 'variant set', varset.name)
                     variant_path = '{}:{}'.format(os.path.splitext(layer.realPath)[0], varset.name)
                     varprim = varset.owner
                     
@@ -259,7 +257,8 @@ class DependencyWalker(object):
                     info['type'] = 'variant'
                     info['variant_set'] = varset.name
                     info['variants'] = [str(x) for x in varset.variants.keys()]
-                    info['current_variant'] = varprim.variantSelections[varset.name]
+                    
+                    info['current_variant'] = varprim.variantSelections.get(varset.name)
                     
                     self.nodes[variant_path] = info
                     
@@ -472,15 +471,14 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.toolbar_lay = QtWidgets.QHBoxLayout()
         self.top_layout.addLayout(self.toolbar_lay)
         
-        
         noodle_label = QtWidgets.QLabel()
         icon = QtGui.QPixmap()
         icon.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons", 'noodle.png'))
         noodle_label.setPixmap(icon.scaled(32, 32,
-                                              QtCore.Qt.KeepAspectRatio,
-                                              QtCore.Qt.SmoothTransformation)
-                                  )
-
+                                           QtCore.Qt.KeepAspectRatio,
+                                           QtCore.Qt.SmoothTransformation)
+                               )
+        
         self.toolbar_lay.addWidget(noodle_label)
         
         self.openBtn = QtWidgets.QPushButton("Open...", )
@@ -873,4 +871,3 @@ def main(usdfile=None, walk_attributes=False):
     win = NodeGraphWindow(usdfile=usdfile, parent=par, walk_attributes=walk_attributes)
     win.show()
     return win
-
