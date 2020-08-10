@@ -13,7 +13,7 @@ import sys
 import platform
 
 from Qt import QtCore, QtWidgets, QtGui
-from pxr import Usd, Sdf, Ar, UsdUtils
+from pxr import Usd, Sdf, Ar, UsdUtils, Tf
 
 import utils
 from vendor.Nodz import nodz_main
@@ -688,7 +688,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         path = userdata.get('path')
         layer = Sdf.Layer.FindOrOpen(path)
         if layer:
-            win = text_view.TextViewer(input_text=layer.ExportToString(),title=path, parent=self)
+            win = text_view.TextViewer(input_text=layer.ExportToString(), title=path, parent=self)
             win.show()
     
     
@@ -729,7 +729,10 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         x = DependencyWalker(self.usdfile)
         x.walk_attributes = self.walk_attributes
-        x.start()
+        try:
+            x.start()
+        except Tf.ErrorException as e:
+            QtWidgets.QMessageBox.warning(self, 'File Parsing error', '{}'.format(e.message), QtWidgets.QMessageBox.Ok)
         
         # get back the scrubbed initial file path
         # which will let us find the start node properly
