@@ -732,7 +732,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         try:
             x.start()
         except Tf.ErrorException as e:
-            QtWidgets.QMessageBox.warning(self, 'File Parsing error', '{}'.format(e.message), QtWidgets.QMessageBox.Ok)
+            QtWidgets.QMessageBox.warning(self, 'File Parsing error', '{}'.format(e), QtWidgets.QMessageBox.Ok)
         
         # get back the scrubbed initial file path
         # which will let us find the start node properly
