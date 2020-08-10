@@ -725,7 +725,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         self.nodz.clearGraph()
         self.root_node = None
-        self.setWindowTitle('Noodle - '.format(self.usdfile))
+        self.setWindowTitle('Noodle - {}'.format(self.usdfile))
         
         x = DependencyWalker(self.usdfile)
         x.walk_attributes = self.walk_attributes
