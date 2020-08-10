@@ -59,7 +59,7 @@ python3 $NOODLE/usd_noodle/
 
 ## Arguments:
 ```
-usage: app.py [-h] [-i USDFILE] [-t]
+usage: [-h] [-i USDFILE] [-t]
    
 optional arguments:
   -h, --help            show this help message and exit
