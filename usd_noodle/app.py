@@ -688,7 +688,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
         path = userdata.get('path')
         layer = Sdf.Layer.FindOrOpen(path)
         if layer:
-            win = text_view.TextViewer(input_text=layer.ExportToString(), parent=self)
+            win = text_view.TextViewer(input_text=layer.ExportToString(),title=path, parent=self)
             win.show()
     
     

@@ -8,12 +8,13 @@ from Qt import QtWidgets, QtCore, QtWidgets, QtGui
 
 
 class TextViewer(QtWidgets.QDialog):
-    def __init__(self, usdfile=None, input_text=None, parent=None):
+    def __init__(self, usdfile=None, input_text=None, title=None, parent=None):
         super(TextViewer, self).__init__(parent)
         self.setAttribute(QtCore.Qt.WA_DeleteOnClose)
         
         self.settings = QtCore.QSettings("chrisg", "usd-noodle-textview")
         
+        self.title = title
         self.usdfile = None
         if usdfile:
             self.usdfile = usdfile
@@ -57,7 +58,6 @@ class TextViewer(QtWidgets.QDialog):
         self.find_next_btn.clicked.connect(partial(self.find_string, forwards=True))
         self.findLayout.addWidget(self.find_next_btn)
         
-        self.setWindowTitle(self.usdfile)
         
         if self.settings.value("geometry"):
             self.restoreGeometry(self.settings.value("geometry"))
@@ -97,6 +97,10 @@ class TextViewer(QtWidgets.QDialog):
             fp = open(self.usdfile, 'r')
             self.data = fp.read()
             fp.close()
+            self.setWindowTitle(self.usdfile)
+            
+        if self.title:
+            self.setWindowTitle(self.title)
         
         self.editor.setPlainText(self.data)
         # make sure we reset the dirty state after setting the editor contents
