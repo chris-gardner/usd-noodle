@@ -522,14 +522,14 @@ class NodeGraphWindow(QtWidgets.QDialog):
         toolbarspacer = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.toolbar_lay.addItem(toolbarspacer)
         
-        splitter = QtWidgets.QSplitter()
+        self.splitter = QtWidgets.QSplitter()
         
-        self.top_layout.addWidget(splitter)
+        self.top_layout.addWidget(self.splitter)
         
         main_widget = QtWidgets.QWidget()
         main_widget.setContentsMargins(0, 0, 0, 0)
         
-        splitter.addWidget(main_widget)
+        self.splitter.addWidget(main_widget)
         lay = QtWidgets.QVBoxLayout()
         lay.setContentsMargins(0, 0, 0, 0)
         
@@ -551,14 +551,17 @@ class NodeGraphWindow(QtWidgets.QDialog):
         info_scroll.setWidgetResizable(True)
         self.info_panel = info_panel.InfoPanel(parent=self)
         info_scroll.setWidget(self.info_panel)
-        splitter.addWidget(info_scroll)
+        self.splitter.addWidget(info_scroll)
         
-        splitter.setSizes([self.width() * 0.8, self.width() * 0.2])
+        self.splitter.setSizes([self.width() * 0.8, self.width() * 0.2])
         
         self.nodz.signal_NodeMoved.connect(self.on_nodeMoved)
         self.nodz.signal_NodeSelected.connect(self.on_nodeSelected)
         self.nodz.signal_NodeContextMenuEvent.connect(self.node_context_menu)
         self.nodz.signal_KeyPressed.connect(self.pickwalk)
+        
+        if self.settings.value("splitterSizes"):
+            self.splitter.restoreState(self.settings.value("splitterSizes"))
     
     
     def pickwalk(self, key):
@@ -886,6 +889,7 @@ class NodeGraphWindow(QtWidgets.QDialog):
             self.find_win.close()
         
         self.settings.setValue("geometry", self.saveGeometry())
+        self.settings.setValue("splitterSizes", self.splitter.saveState())
         super(NodeGraphWindow, self).closeEvent(event)
 
 
