@@ -54,6 +54,8 @@ class DependencyWalker(object):
         self.resolver.ConfigureResolverForAsset(usdfile)
         
         self.visited_nodes = []
+        
+        self.errored_nodes = []
     
     
     def start(self):
@@ -119,7 +121,18 @@ class DependencyWalker(object):
         payloads = []
         references = []
         
-        layer = Sdf.Layer.FindOrOpen(layer_path)
+        try:
+            layer = Sdf.Layer.FindOrOpen(layer_path)
+        except Tf.ErrorException as e:
+            info = {}
+            info['online'] = True
+            info['error'] = True
+            info['path'] = layer_path
+            self.nodes[layer_path] = info
+            self.errored_nodes.append(layer_path)
+            logger.info('usd file: {} had load errors'.format(layer_path))
+            return
+        
         if not layer:
             return
         # print(id, layer.realPath)
@@ -128,6 +141,7 @@ class DependencyWalker(object):
         
         # print(id, 'children'.center(40, '-'))
         
+        child_list = []
         # info packet from the root prim
         if layer_path in self.nodes:
             info = self.nodes[layer_path]
@@ -729,10 +743,13 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         x = DependencyWalker(self.usdfile)
         x.walk_attributes = self.walk_attributes
-        try:
-            x.start()
-        except Tf.ErrorException as e:
-            QtWidgets.QMessageBox.warning(self, 'File Parsing error', '{}'.format(e), QtWidgets.QMessageBox.Ok)
+        x.start()
+        
+        if x.errored_nodes:
+            message = 'Some layers had load errors:\n'
+            for errpath in x.errored_nodes:
+                message += '{}\n'.format(errpath)
+            QtWidgets.QMessageBox.warning(self, 'File Parsing errors', message, QtWidgets.QMessageBox.Ok)
         
         # get back the scrubbed initial file path
         # which will let us find the start node properly
@@ -787,6 +804,9 @@ class NodeGraphWindow(QtWidgets.QDialog):
                     
                     nodeA.userData = info
                     
+                    if info.get('error', False) is True:
+                        self.nodz.createAttribute(node=nodeA, name='ERROR', index=0, preset='attr_preset_2',
+                                                  plug=False, socket=False)
                     if info['online'] is False:
                         self.nodz.createAttribute(node=nodeA, name='OFFLINE', index=0, preset='attr_preset_2',
                                                   plug=False, socket=False)
