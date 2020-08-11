@@ -459,6 +459,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         self.find_win = None
         self.build_ui()
+        self.show()
+        
         if self.usdfile:
             self.load_file()
     
@@ -748,12 +750,6 @@ class NodeGraphWindow(QtWidgets.QDialog):
         x.walk_attributes = self.walk_attributes
         x.start()
         
-        if x.errored_nodes:
-            message = 'Some layers had load errors:\n'
-            for errpath in x.errored_nodes:
-                message += '{}\n'.format(errpath)
-            QtWidgets.QMessageBox.warning(self, 'File Parsing errors', message, QtWidgets.QMessageBox.Ok)
-        
         # get back the scrubbed initial file path
         # which will let us find the start node properly
         self.usdfile = x.usdfile
@@ -846,6 +842,12 @@ class NodeGraphWindow(QtWidgets.QDialog):
         self.nodz.arrangeGraph(self.root_node)
         # self.nodz.autoLayoutGraph()
         self.nodz._focus()
+        
+        if x.errored_nodes:
+            message = 'Some layers had load errors:\n'
+            for errpath in x.errored_nodes:
+                message += '{}\n'.format(errpath)
+            QtWidgets.QMessageBox.warning(self, 'File Parsing errors', message, QtWidgets.QMessageBox.Ok)
     
     
     def layout_nodes(self):
@@ -896,5 +898,4 @@ class NodeGraphWindow(QtWidgets.QDialog):
 def main(usdfile=None, walk_attributes=False):
     par = QtWidgets.QApplication.activeWindow()
     win = NodeGraphWindow(usdfile=usdfile, parent=par, walk_attributes=walk_attributes)
-    win.show()
     return win
