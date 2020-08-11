@@ -76,7 +76,7 @@ class TextViewer(QtWidgets.QDialog):
         found = self.editor.find(find_string, options)
     
     
-    def closeEvent(self, *args, **kwargs):
+    def closeEvent(self, event):
         """
         Window close event. Saves preferences. Impregnates your dog.
         """
@@ -84,7 +84,7 @@ class TextViewer(QtWidgets.QDialog):
         self.settings.setValue("geometry", self.saveGeometry())
         self.deleteLater()
         
-        super(TextViewer, self).closeEvent(*args)
+        super(TextViewer, self).closeEvent(event)
     
     
     def cancel(self):
