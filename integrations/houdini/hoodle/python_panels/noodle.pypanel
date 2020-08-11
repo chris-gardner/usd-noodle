@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pythonPanelDocument>
+    <!-- This file contains definitions of Python interfaces and the
+   interfaces menu.  It should not be hand-edited when it is being
+   used by the application.  Note, that two definitions of the
+   same interface or of the interfaces menu are not allowed
+   in a single file. -->
+    <interface name="usd_noodle" label="Noodle" icon="hicon:/SVGIcons.index?DATATYPES_node_path.svg">
+        <script><![CDATA[
+
+from hutil.Qt import QtWidgets
+
+class NodePathExample(QtWidgets.QWidget):
+    def __init__(self):
+        super(NodePathExample, self).__init__()
+
+        instruction_label = QtWidgets.QLabel(
+            "Please navigate the Houdini node network using the network editor.")
+
+        self.currentNodePathLabel = QtWidgets.QLabel()
+
+        layout = QtWidgets.QVBoxLayout()
+        layout.addWidget(instruction_label)
+        layout.addSpacing(5)
+        layout.addWidget(self.currentNodePathLabel)
+        layout.addStretch(1)
+
+        self.setLayout(layout)
+
+    def updateCurrentNodePathLabel(self, node_path):
+        self.currentNodePathLabel.setText("Current Node Path: %s" % node_path)
+
+theExampleWidget = NodePathExample()
+
+def onCreateInterface():
+    global theExampleWidget
+    return theExampleWidget
+
+def onNodePathChanged(node):
+    global theExampleWidget
+
+    if node:
+        node_path = node.path()
+    else:
+        node_path = "None"
+    theExampleWidget.updateCurrentNodePathLabel(node_path)
+
+ ]]></script>
+        <includeInToolbarMenu menu_position="102" create_separator="false"/>
+        <help><![CDATA[]]></help>
+    </interface>
+</pythonPanelDocument>
