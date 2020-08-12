@@ -35,7 +35,10 @@ usd_noodle.main()
 ```
 
 ### Houdini
-Don't attempt to run it from the script editor. Make a shelf button. You will cry less.
+Aka "hoodle" -  a Houdini PythonPanel and basic LOPs integration are available.
+
+Use these install instructions:
+[Houdini Installation](https://github.com/chris-gardner/usd-noodle/tree/master/integrations/houdini)
 
 ## Running from a commandline
 Assuming you have a USD installation at $USD...

@@ -24,3 +24,12 @@ HOUDINI_PATH=$HOUDINI_PATH;$NOODLE/integrations/hoodle;&
 Always end the HOUDINI_PATH variable with an "&" - this ensures all the *actual* Houdini files get loaded.
 
 Linux and Mac should use ":" as an envar seperator, windows should use ";".
+
+## Usage
+### Make a Noodle panel
+You can create a pane tab with Noodle embedded. Click the + button on a pane tab and choose: 
+
+```New Pane Tab Type -> USD -> USD-Noodle```
+
+### LOPs / Solaris
+Right click on a LOP node, choose ```LOP Actions -> Noodle Stage``` to load the current stage into a Noodle panel.
