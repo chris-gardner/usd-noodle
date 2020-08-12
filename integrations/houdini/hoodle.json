@@ -1,10 +1,11 @@
 {
-	"env": [
-		{
-			"NOODLE": "/path/to/usd-noodle"
-		}
-	],
-	"PATH": "$NOODLE/integrations/houdini/hoodle",
-	"PYTHONPATH": "$NOODLE"
-
+  "env": [
+    {
+      "NOODLE": "/path/to/usd-noodle"
+    },
+    {
+      "PYTHONPATH": "$PYTHONPATH;$NOODLE"
+    }
+  ],
+  "path": "$NOODLE/integrations/houdini/hoodle"
 }
