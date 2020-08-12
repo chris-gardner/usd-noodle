@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+
+<menuDocument>
+    <!-- menuDocument can only contain 1 menu element, whose id is
+         implicitly "root_menu"
+      -->
+    <menu>
+
+
+        <!-- Save options. -->
+        <subMenu id="opmenu.lop_options_menu">
+            <scriptItem id="opmenu.save_stage">
+                <label>Noodle Stage</label>
+                <context>
+                    <expression>kwargs["node"].type().category().name() == "Lop"</expression>
+                </context>
+                <scriptCode>
+                    <![CDATA[
+import hoodle_utils
+import tempfile
+import os.path
+
+lopnode_name = kwargs["node"].name()
+write_path = ("{}__{}.usdc").format(tempfile.NamedTemporaryFile().name, lopnode_name)
+write_path = write_path.replace('\\', '/')
+
+# export the stage to a temp file
+kwargs["node"].activeLayer().Export(write_path)
+
+# tell noodle to load the temp file
+noodle_instance = hoodle_utils.get_noodle_instance()
+noodle_instance.usdfile = write_path
+noodle_instance.load_file()
+
+
+]]></scriptCode>
+            </scriptItem>
+        </subMenu>
+
+
+    </menu>
+</menuDocument>

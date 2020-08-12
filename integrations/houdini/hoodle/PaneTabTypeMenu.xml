@@ -12,7 +12,7 @@
             <label>USD</label>
 
             <actionItem id="pythonpanel::usd_noodle">
-                <label>Noodle</label>
+                <label>USD-Noodle</label>
             </actionItem>
         </subMenu>
 

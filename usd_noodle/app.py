@@ -402,7 +402,7 @@ class FindNodeWindow(QtWidgets.QDialog):
         self.nodz = nodz
         super(FindNodeWindow, self).__init__(parent)
         self.setWindowFlags(QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnTopHint)
-        
+        self.setWindowTitle('Find nodes')
         self.build_ui()
     
     
