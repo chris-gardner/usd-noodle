@@ -1,15 +1,20 @@
 ## Installation
 
+Naturally, you've [cloned the usd-noodle repo](https://github.com/chris-gardner/usd-noodle/blob/master/README.md)
+ to somewhere on your disk (don't forget the submodules!)
+
 ### Houdini 17.5+
 Packages are the modern and convenient way to install third party Houdini addons!
-* Download and expand the archive to somewhere on your drive
 * Move "hoodle.json" into a houdini packages directoy (eg "~/houdini18.0/packages/" - if your Hou pref dir doesn't have
 a "packages" folder, you can create it)
-and edit the file to point to your hoodle folder on disk
+and edit "NOODLE" path to point to the usd-noodle folder on your disk
+
+```
+"NOODLE": "/path/to/usd-noodle"
+```
 
 ### Houdini 17 and older
 Lucky you! You get to modify your houdini.env file!
-* Download and expand the archive to somewhere convenient on your drive
 * Edit your houdini.env file (eg "~/houdini18.0/houdini.env") to add the hoodle path to the HOUDINI_PATH variable and 
 and your PYTHONPATH.
 
