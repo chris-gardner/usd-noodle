@@ -402,7 +402,7 @@ class FindNodeWindow(QtWidgets.QDialog):
         self.nodz = nodz
         super(FindNodeWindow, self).__init__(parent)
         self.setWindowFlags(QtCore.Qt.Tool | QtCore.Qt.WindowStaysOnTopHint)
-        
+        self.setWindowTitle('Find nodes')
         self.build_ui()
     
     
@@ -448,29 +448,20 @@ class FindNodeWindow(QtWidgets.QDialog):
 
 class NodeGraphWindow(QtWidgets.QDialog):
     def __init__(self, usdfile=None, walk_attributes=False, parent=None):
-        self.usdfile = usdfile
-        self.root_node = None
-        
         super(NodeGraphWindow, self).__init__(parent)
         self.settings = QtCore.QSettings("chrisg", "usd-noodle")
         self.setWindowTitle("Noodle")
-        self.nodz = None
-        self.walk_attributes = walk_attributes
-        
-        self.find_win = None
         self.build_ui()
-        self.show()
         
-        if self.usdfile:
-            self.load_file()
-    
-    
-    def loadTextChkChanged(self, state):
-        self.walk_attributes = self.loadTextChk.isChecked()
+        self.noodle = NoodleWidget(usdfile=None, walk_attributes=walk_attributes, parent=self)
+        self.noodle.file_loaded.connect(self.file_loaded)
+        self.top_layout.addWidget(self.noodle)
+        self.show()
+        self.noodle.usdfile = usdfile
+        self.noodle.load_file()
     
     
     def build_ui(self):
-        
         if self.settings.value("geometry"):
             self.restoreGeometry(self.settings.value("geometry"))
         else:
@@ -479,6 +470,57 @@ class NodeGraphWindow(QtWidgets.QDialog):
         
         self.setWindowFlags(
             self.windowFlags() | QtCore.Qt.WindowMinimizeButtonHint | QtCore.Qt.WindowMaximizeButtonHint)
+        
+        self.top_layout = QtWidgets.QVBoxLayout()
+        self.top_layout.setContentsMargins(0, 0, 0, 0)
+        self.setLayout(self.top_layout)
+    
+    
+    def file_loaded(self, filename):
+        self.setWindowTitle("Noodle - {}".format(filename))
+    
+    
+    def closeEvent(self, event):
+        """
+        Window close event. Saves preferences. Impregnates your dog.
+        """
+        self.noodle.cleanup()
+        self.settings.setValue("geometry", self.saveGeometry())
+        super(NodeGraphWindow, self).closeEvent(event)
+
+
+class NoodleWidget(QtWidgets.QWidget):
+    file_loaded = QtCore.Signal(object)  # string
+    
+    
+    def __init__(self, usdfile=None, walk_attributes=False, parent=None):
+        super(NoodleWidget, self).__init__(parent)
+        self.settings = QtCore.QSettings("chrisg", "usd-noodle")
+        
+        self.usdfile = usdfile
+        self.root_node = None
+        
+        self.nodz = None
+        self.walk_attributes = walk_attributes
+        
+        self.find_win = None
+        self.build_ui()
+        
+        if self.usdfile:
+            self.load_file()
+    
+    
+    def cleanup(self):
+        if self.find_win:
+            self.find_win.close()
+        self.settings.setValue("splitterSizes", self.splitter.saveState())
+    
+    
+    def loadTextChkChanged(self, state):
+        self.walk_attributes = self.loadTextChk.isChecked()
+    
+    
+    def build_ui(self):
         
         self.top_layout = QtWidgets.QVBoxLayout()
         # self.top_layout.setContentsMargins(0, 0, 0, 0)
@@ -848,6 +890,8 @@ class NodeGraphWindow(QtWidgets.QDialog):
             for errpath in x.errored_nodes:
                 message += '{}\n'.format(errpath)
             QtWidgets.QMessageBox.warning(self, 'File Parsing errors', message, QtWidgets.QMessageBox.Ok)
+        
+        self.file_loaded.emit(self.usdfile)
     
     
     def layout_nodes(self):
@@ -881,18 +925,6 @@ class NodeGraphWindow(QtWidgets.QDialog):
             print(filename[0])
             self.usdfile = filename[0]
             self.load_file()
-    
-    
-    def closeEvent(self, event):
-        """
-        Window close event. Saves preferences. Impregnates your dog.
-        """
-        if self.find_win:
-            self.find_win.close()
-        
-        self.settings.setValue("geometry", self.saveGeometry())
-        self.settings.setValue("splitterSizes", self.splitter.saveState())
-        super(NodeGraphWindow, self).closeEvent(event)
 
 
 def main(usdfile=None, walk_attributes=False):

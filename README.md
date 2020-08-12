@@ -17,7 +17,7 @@ Pretty node graph showing dependencies of a USD file
 Make sure you clone with submodules. Like this:
 
 ```
-cd /path/to/usd-noodle
+cd /path/to/somewhere
 git clone --recursive https://github.com/chris-gardner/usd-noodle.git
 ```
 
@@ -29,7 +29,7 @@ Make the usd-noodle directory is on your PYTHONPATH:
 
 ```
 import sys
-sys.path.append('/path/to/usd-noodle')
+sys.path.append('/path/to/somewhere/usd-noodle')
 import usd_noodle
 usd_noodle.main()
 ```
@@ -57,7 +57,7 @@ export PATH=$PATH:$USD/lib:$USD/bin:
 python3 $NOODLE/usd_noodle/
 ```
 
-## Arguments:
+### Arguments:
 ```
 usage: [-h] [-i USDFILE] [-t]
    

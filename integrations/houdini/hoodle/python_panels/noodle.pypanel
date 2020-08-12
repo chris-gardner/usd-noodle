@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<pythonPanelDocument>
+    <interface name="usd_noodle" label="USD-Noodle" icon="hicon:/SVGIcons.index?DATATYPES_node_path.svg">
+        <script><![CDATA[
+
+import usd_noodle
+
+noodle_widget = usd_noodle.NoodleWidget()
+
+def onCreateInterface():
+    global theExampleWidget
+    return noodle_widget
+
+ ]]></script>
+        <help><![CDATA[
+fuck
+]]></help>
+    </interface>
+</pythonPanelDocument>
