@@ -788,6 +788,8 @@ class NoodleWidget(QtWidgets.QWidget):
     
     
     def load_file(self):
+        if not self.usdfile:
+            return
         
         if not os.path.isfile(self.usdfile):
             raise RuntimeError("Cannot find file: %s" % self.usdfile)
