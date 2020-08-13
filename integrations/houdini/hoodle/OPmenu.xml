@@ -26,13 +26,19 @@ write_path = ("{}__{}.usdc").format(tempfile.NamedTemporaryFile().name, lopnode_
 write_path = write_path.replace('\\', '/')
 
 # export the stage to a temp file
-kwargs["node"].activeLayer().Export(write_path)
+activeLayer = kwargs["node"].activeLayer()
+if activeLayer:
+    # export the active layer to a temp file
+    activeLayer.Export(write_path)
 
-# tell noodle to load the temp file
-noodle_instance = hoodle_utils.get_noodle_instance()
-noodle_instance.usdfile = write_path
-noodle_instance.load_file()
-
+    # tell noodle to load the temp file
+    noodle_instance = hoodle_utils.get_noodle_instance()
+    noodle_instance.usdfile = write_path
+    noodle_instance.load_file()
+else:
+    # cooking might be off, something might be errored out. who knows.
+    msg = 'Node has no active layer (may be in error state, cooking may be off).'
+    hou.ui.displayMessage(msg)
 
 ]]></scriptCode>
             </scriptItem>

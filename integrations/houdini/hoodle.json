@@ -4,7 +4,11 @@
       "NOODLE": "/path/to/usd-noodle"
     },
     {
-      "PYTHONPATH": "$PYTHONPATH;$NOODLE"
+      "PYTHONPATH":
+      [
+            {"houdini_os != 'windows'" : "$PYTHONPATH:$NOODLE"},
+            {"houdini_os == 'windows'" : "$PYTHONPATH;$NOODLE"}
+      ]
     }
   ],
   "path": "$NOODLE/integrations/houdini/hoodle"
