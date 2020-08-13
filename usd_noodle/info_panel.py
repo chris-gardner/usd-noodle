@@ -354,6 +354,7 @@ class InfoPanel(QtWidgets.QWidget):
         self.usdfile = usdfile
         
         self.attrLayout.addWidget(StringAttrEdit('Name', os.path.basename(self.usdfile), readOnly=True))
+        self.attrLayout.addWidget(StringAttrEdit('Usage', info.get("count", 0), readOnly=True))
         
         # some node types don't represent files
         non_file_nodes = ['clip', 'variant']

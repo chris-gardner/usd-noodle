@@ -82,6 +82,14 @@ class DependencyWalker(object):
         self.nodes[layer_path] = info
         
         self.walkStageLayers(layer_path)
+        
+        for edge in self.edges:
+            start = edge[0]
+            end = edge[1]
+            
+            info = self.nodes[end]
+            info['count'] = info.get("count", 0) + 1
+            self.nodes[end] = info
     
     
     def get_flat_child_list(self, path):
