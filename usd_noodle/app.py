@@ -598,7 +598,8 @@ class NoodleWidget(QtWidgets.QWidget):
         lay.addWidget(self.nodz)
         self.nodz.initialize()
         self.nodz.fitInView(-500, -500, 500, 500)
-        
+        self.nodz.create_overview_widget()
+
         info_scroll = QtWidgets.QScrollArea()
         info_scroll.setWidgetResizable(True)
         self.info_panel = info_panel.InfoPanel(parent=self)
@@ -870,7 +871,6 @@ class NoodleWidget(QtWidgets.QWidget):
                 
                 nds.append(node)
 
-        self.nodz.create_overview_widget()
 
         # pprint(x.edges)
         
@@ -896,7 +896,7 @@ class NoodleWidget(QtWidgets.QWidget):
         self.nodz.arrangeGraph(self.root_node)
         # self.nodz.autoLayoutGraph()
         self.nodz._focus()
-        
+
         if x.errored_nodes:
             message = 'Some layers had load errors:\n'
             for errpath in x.errored_nodes:
