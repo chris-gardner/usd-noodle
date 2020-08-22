@@ -869,7 +869,9 @@ class NoodleWidget(QtWidgets.QWidget):
                         nodeA._pen.setColor(QtGui.QColor(255, 0, 0))
                 
                 nds.append(node)
-        
+
+        self.nodz.create_overview_widget()
+
         # pprint(x.edges)
         
         # 'wiring nodes'.center(40, '-')
