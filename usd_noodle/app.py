@@ -198,6 +198,35 @@ class DependencyWalker(object):
                         
                         self.nodes[resolved_path] = info
                         
+                        # so, we want to find out if this attribute is inside a shader
+                        # it's conceivable that asset attrs could exist outside of shaders
+                        # i just havent seen that in the wild yet
+                        # crawl through the ancestors - ie Material -> Shader -> Attribute
+                        owner = attr.owner
+                        owner_type = owner.typeName
+                        if owner_type == 'Shader':
+                            owner_parent = owner.nameParent
+                            if owner_parent.typeName == 'Material':
+                                material_path = '{}:{}'.format(os.path.splitext(layer.realPath)[0], owner_parent.name)
+                                info = {}
+                                info['online'] = True
+                                info['path'] = material_path
+                                info['type'] = 'material'
+                                
+                                self.nodes[material_path] = info
+                                
+                                # connect the material to the layer
+                                if not [layer_path, material_path, 'materials'] in self.edges:
+                                    self.edges.append([layer_path, material_path, 'materials'])
+                                
+                                # then connect the file to the material
+                                if not [material_path, resolved_path, owner.name] in self.edges:
+                                    self.edges.append([material_path, resolved_path, owner.name])
+                                
+                                continue
+                        
+                        # finally, if it doesn't smell like a material
+                        # then just set up a regular connectio to the layer
                         if not [layer_path, resolved_path, info['type']] in self.edges:
                             self.edges.append([layer_path, resolved_path, info['type']])
             
@@ -599,7 +628,7 @@ class NoodleWidget(QtWidgets.QWidget):
         self.nodz.initialize()
         self.nodz.fitInView(-500, -500, 500, 500)
         self.nodz.create_overview_widget()
-
+        
         info_scroll = QtWidgets.QScrollArea()
         info_scroll.setWidgetResizable(True)
         self.info_panel = info_panel.InfoPanel(parent=self)
@@ -839,6 +868,9 @@ class NoodleWidget(QtWidgets.QWidget):
             elif info.get("type") == 'tex':
                 node_preset = 'node_texture'
                 node_icon = "texture.png"
+            elif info.get("type") == 'material':
+                node_preset = 'node_material'
+                node_icon = "material.png"
             
             if not node in nds:
                 nodeA = self.nodz.createNode(name=node, label=node_label, preset=node_preset, position=pos)
@@ -870,8 +902,7 @@ class NoodleWidget(QtWidgets.QWidget):
                         nodeA._pen.setColor(QtGui.QColor(255, 0, 0))
                 
                 nds.append(node)
-
-
+        
         # pprint(x.edges)
         
         # 'wiring nodes'.center(40, '-')
@@ -896,7 +927,7 @@ class NoodleWidget(QtWidgets.QWidget):
         self.nodz.arrangeGraph(self.root_node)
         # self.nodz.autoLayoutGraph()
         self.nodz._focus()
-
+        
         if x.errored_nodes:
             message = 'Some layers had load errors:\n'
             for errpath in x.errored_nodes:

@@ -357,7 +357,7 @@ class InfoPanel(QtWidgets.QWidget):
         self.attrLayout.addWidget(StringAttrEdit('Usage', info.get("count", 0), readOnly=True))
         
         # some node types don't represent files
-        non_file_nodes = ['clip', 'variant']
+        non_file_nodes = ['clip', 'variant', 'material']
         if not info.get("type") in non_file_nodes:
             file_online = os.path.isfile(self.usdfile)
             self.attrLayout.addWidget(BoolAttrEdit('Online', file_online, readOnly=True))
@@ -383,6 +383,8 @@ class InfoPanel(QtWidgets.QWidget):
             node_icon = "reference.png"
         elif info.get("type") == 'tex':
             node_icon = "texture.png"
+        elif info.get("type") == 'material':
+            node_icon = "material.png"
         
         icon = QtGui.QPixmap()
         icon.load(os.path.join(os.path.dirname(os.path.abspath(__file__)), "icons", node_icon))
