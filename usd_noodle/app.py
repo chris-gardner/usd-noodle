@@ -600,6 +600,10 @@ class NoodleWidget(QtWidgets.QWidget):
         self.layoutBtn.clicked.connect(self.layout_nodes)
         self.toolbar_lay.addWidget(self.layoutBtn)
         
+        self.saveImgBtn = QtWidgets.QPushButton("Save Image")
+        self.saveImgBtn.clicked.connect(self.save_image)
+        self.toolbar_lay.addWidget(self.saveImgBtn)
+        
         toolbarspacer = QtWidgets.QSpacerItem(10, 10, QtWidgets.QSizePolicy.Expanding, QtWidgets.QSizePolicy.Minimum)
         self.toolbar_lay.addItem(toolbarspacer)
         
@@ -935,6 +939,24 @@ class NoodleWidget(QtWidgets.QWidget):
             QtWidgets.QMessageBox.warning(self, 'File Parsing errors', message, QtWidgets.QMessageBox.Ok)
         
         self.file_loaded.emit(self.usdfile)
+    
+    
+    def save_image(self):
+        
+        multipleFilters = "Image Files (*.jpg *.png) (*.jpg *.png);;All Files (*.*) (*.*)"
+        options = QtWidgets.QFileDialog.DontUseNativeDialog
+        try:
+            # qt 5.2 and up
+            options = options | QtWidgets.QFileDialog.DontUseCustomDirectoryIcons
+        except:
+            pass
+        
+        filename = QtWidgets.QFileDialog.getSaveFileName(self, 'Save image file', '/', multipleFilters,
+                                                         None, options)
+        if filename[0]:
+            print('saving image:', filename[0])
+            
+            self.nodz.save_image(filename[0])
     
     
     def layout_nodes(self):
