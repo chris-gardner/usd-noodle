@@ -51,7 +51,6 @@ class DependencyWalker(object):
         self.edges = []
         
         self.resolver = Ar.GetResolver()
-        self.resolver.ConfigureResolverForAsset(usdfile)
         
         self.visited_nodes = []
         
@@ -110,16 +109,13 @@ class DependencyWalker(object):
     
     
     def resolve(self, layer, path):
-        if self.resolver.IsRelativePath(path):
-            return self.resolver.AnchorRelativePath(layer.realPath, path)
+        resolved = self.resolver.Resolve(path)
+        if resolved:
+            return resolved.GetPathString()
         else:
-            resolved = self.resolver.Resolve(path)
-            if resolved:
-                return resolved
-            else:
-                # resolver will return None on invalid paths
-                # we still want the path regardless
-                return path
+            # resolver will return None on invalid paths
+            # we still want the path regardless
+            return path
     
     
     def walkStageLayers(self, layer_path, level=1):
